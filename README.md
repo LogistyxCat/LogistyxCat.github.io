@@ -1,2 +1,2 @@
 # logistyxcat.github.io
-production branch of personal blog
+Personal blog, powered by Python Pelican
